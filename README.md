@@ -71,7 +71,7 @@ Sonder `OPENAI_API_KEY` loop die terugvoer in **toetsmodus** (alles “behaal”
    - `SESSION_SECRET` (lang ewekansige string), `OPENAI_API_KEY`, `OPENAI_MODEL`
    - `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` (slegs vir die eerste ontplooiing nodig)
    - Opsioneel `S3_*` vir foto’s in ’n bucket
-3. `railway.json` doen die res: `npm ci && npm run build`, dan voor elke ontplooiing `prisma migrate deploy` + seed (idempotent), en gesondheidskontrole op `/api/health`.
+3. `railway.json` doen die res: `npm ci && npm run build`, en by elke begin van die bediener `prisma migrate deploy` + seed (idempotent, in `scripts/start.mjs`), en gesondheidskontrole op `/api/health`.
 4. Die publieke domein se *target port* moet gelyk wees aan die `PORT` wat in die logs gewys word.
 
 ### Skaal
