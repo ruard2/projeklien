@@ -1,0 +1,197 @@
+// VOL-program — datamodel
+// Multi-skool van die begin af: Skool → Projek → Groep.
+// Werkboeke self (werkblaaie, kriteria, kontrolepunte) is weergawe-sjablone in kode
+// (lib/werkboeke); 'n Projek verwys daarna met templateKey.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model School {
+  id        String    @id @default(cuid())
+  slug      String    @unique
+  name      String
+  motto     String?
+  createdAt DateTime  @default(now())
+  teachers  Teacher[]
+  projects  Project[]
+}
+
+enum TeacherRole {
+  ADMIN
+  TEACHER
+}
+
+model Teacher {
+  id           String      @id @default(cuid())
+  schoolId     String
+  school       School      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  email        String      @unique
+  name         String
+  passwordHash String
+  role         TeacherRole @default(TEACHER)
+  active       Boolean     @default(true)
+  createdAt    DateTime    @default(now())
+  lastLoginAt  DateTime?
+
+  @@index([schoolId])
+}
+
+model Project {
+  id          String   @id @default(cuid())
+  schoolId    String
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  templateKey String
+  title       String
+  grade       Int
+  year        Int
+  phenomenon  String
+  question    String
+  partner     String?
+  // Fases met datums (oorskryf sjabloon se verstek), sien lib/werkboeke/tipes.ts → Phase[]
+  schedule    Json?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  groups      Group[]
+
+  @@index([schoolId, active])
+}
+
+model Group {
+  id          String              @id @default(cuid())
+  projectId   String
+  project     Project             @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  code        String              @unique
+  klas        String?
+  name        String?
+  // Voorname van lede (maks 4). Word NOOIT na die KI gestuur nie.
+  members     Json                @default("[]")
+  archived    Boolean             @default(false)
+  createdAt   DateTime            @default(now())
+  lastSeenAt  DateTime?
+  responses   Response[]
+  versions    ResponseVersion[]
+  feedback    Feedback[]
+  checkpoints Checkpoint[]
+  photos      Photo[]
+
+  @@index([projectId, archived])
+}
+
+enum SheetStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  NOT_READY
+  READY
+}
+
+model Response {
+  id           String      @id @default(cuid())
+  groupId      String
+  group        Group       @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  // Werkblad-sleutel, bv. "ws3" of "ws15:2" (per-lid werkblaaie)
+  sheet        String
+  data         Json        @default("{}")
+  revision     Int         @default(0)
+  status       SheetStatus @default(NOT_STARTED)
+  // Hash van data toe dit "gereed" verklaar is; verander die data, val die status terug.
+  readyHash    String?
+  readyBy      String?
+  // Onderwyser-velde (bv. kommentaar by die veiligheidsplan): { [veld]: { text, by, at } }
+  teacherNotes Json        @default("{}")
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  @@unique([groupId, sheet])
+}
+
+model ResponseVersion {
+  id        String   @id @default(cuid())
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sheet     String
+  revision  Int
+  data      Json
+  // "outostoor" | "terugvoer" | "ingedien" | "goedgekeur"
+  reason    String
+  createdAt DateTime @default(now())
+
+  @@index([groupId, sheet, createdAt])
+}
+
+model Feedback {
+  id        String   @id @default(cuid())
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sheet     String
+  revision  Int
+  ready     Boolean
+  // Gestruktureerde resultaat, sien lib/ki/tipes.ts → FeedbackResult
+  result    Json
+  // "gpt-…" | "toetsmodus" | "volledigheid"
+  source    String
+  sheetVer  Int      @default(1)
+  createdAt DateTime @default(now())
+
+  @@index([groupId, sheet, createdAt])
+  @@index([groupId, createdAt])
+}
+
+enum CheckpointStatus {
+  OPEN
+  SUBMITTED
+  APPROVED
+  RETURNED
+}
+
+model Checkpoint {
+  id          String           @id @default(cuid())
+  groupId     String
+  group       Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  number      Int
+  status      CheckpointStatus @default(OPEN)
+  submittedAt DateTime?
+  decidedAt   DateTime?
+  teacherId   String?
+  teacherName String?
+  comment     String?
+  history     Json             @default("[]")
+  updatedAt   DateTime         @updatedAt
+
+  @@unique([groupId, number])
+  @@index([status])
+}
+
+model Photo {
+  id        String   @id @default(cuid())
+  groupId   String
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sheet     String
+  field     String
+  mime      String
+  size      Int
+  width     Int?
+  height    Int?
+  caption   String?
+  // "db" (bytes hieronder) of "s3" (storageKey in die bucket)
+  storage   String   @default("db")
+  storageKey String?
+  bytes     Bytes?
+  createdAt DateTime @default(now())
+
+  @@index([groupId, sheet, field])
+}
+
+// Eenvoudige, veelvuldige-instansie-veilige tempo-beperking.
+model RateEvent {
+  id        BigInt   @id @default(autoincrement())
+  bucket    String
+  createdAt DateTime @default(now())
+
+  @@index([bucket, createdAt])
+}

@@ -1,0 +1,37 @@
+{
+  "name": "vol-projek",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22 <25",
+    "npm": ">=10"
+  },
+  "scripts": {
+    "dev": "next dev --port 3010",
+    "db": "node scripts/dev-db.mjs",
+    "build": "prisma generate && next build",
+    "start": "node scripts/start.mjs",
+    "migrate:dev": "prisma migrate dev",
+    "migrate:deploy": "prisma migrate deploy",
+    "seed": "node --env-file-if-exists=.env scripts/seed.mjs",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.1150.0",
+    "@prisma/client": "6.19.3",
+    "next": "16.2.11",
+    "openai": "^6.49.0",
+    "prisma": "6.19.3",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "4.2.1"
+  },
+  "devDependencies": {
+    "@types/node": "24.0.15",
+    "@types/react": "19.0.8",
+    "@types/react-dom": "19.0.3",
+    "embedded-postgres": "^18.4.0-beta.17",
+    "tsx": "4.20.6",
+    "typescript": "5.8.3"
+  }
+}
