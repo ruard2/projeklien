@@ -161,13 +161,18 @@ export async function requestFeedback(groupId: string, sheetKey: string) {
     };
   } else {
     const photoCounts = await photoCountsFor(groupId, sheetKey);
-    const contextTexts = (sheet.context ?? [])
-      .map((k) => {
+    const contextTexts = (
+      await Promise.all((sheet.context ?? []).map(async (k) => {
         const s = template.sheets.find((x) => x.key === k);
         const r = group.responses.find((x) => x.sheet === k);
         if (!s || !r) return null;
-        return { title: `Werkblad ${s.number}: ${s.title}`, text: sheetToText(s, asData(r.data), { members, anonymise: true }) };
-      })
+        const contextPhotoCounts = await photoCountsFor(groupId, k);
+        return {
+          title: `Werkblad ${s.number}: ${s.title}`,
+          text: sheetToText(s, asData(r.data), { members, anonymise: true, photoCounts: contextPhotoCounts })
+        };
+      }))
+    )
       .filter((x): x is { title: string; text: string } => Boolean(x));
 
     let extraContext: string | undefined;
@@ -177,7 +182,11 @@ export async function requestFeedback(groupId: string, sheetKey: string) {
         .join("; ")}.`;
     }
     const { member } = parseSheetKey(sheetKey);
-    if (member) extraContext = `Hierdie is die persoonlike refleksie van Lid ${member}.`;
+    if (member) {
+      extraContext = [extraContext, `Hierdie is die persoonlike refleksie van Lid ${member}. Gebruik die rolverdeling en die projekverloop as konteks, maar beoordeel net wat hierdie lid self geskryf het.`]
+        .filter(Boolean)
+        .join("\n");
+    }
 
     const out = await generateFeedback({
       template,

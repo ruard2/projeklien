@@ -37,8 +37,8 @@ export const PHASES: Phase[] = [
   { key: "f1", label: "Fase 1", dates: "17 en 22 Sept", what: "Ondersoek – ons bepaal rolle, herroep die uitstappie en stel die probleem.", ready: "Werkblad 1 – 3" },
   { key: "vakansie", label: "Vakansie", dates: "23 Sept – 5 Okt", what: "Rus. Geen verpligte werk nie.", ready: "—", kind: "break" },
   { key: "f2", label: "Fase 2", dates: "8 Okt", what: "Analiseer – integreer ons kennis en oorweeg moontlike oplossings.", ready: "Werkblad 4 – 5" },
-  { key: "f3", label: "Fase 3", dates: "13 en 15 Okt", what: "Aksie – ons ontwerp (beplan) ’n oplossing.", ready: "Werkblad 6 – 8" },
-  { key: "f4", label: "Fase 4", dates: "19 – 28 Okt", what: "Aksie – ons voer die oplossing uit.", ready: "Werkblad 9 – 10", note: "Hierdie fase word op ons eie gedoen en nie by die skool nie." },
+  { key: "f3", label: "Fase 3", dates: "13 en 15 Oktober", what: "Aksie – Ons ontwerp (beplan) ’n oplossing", ready: "Werkblad 6 – 8" },
+  { key: "f4", label: "Fase 4", dates: "19 – 28 Oktober", what: "Aksie – Ons voer die oplossing uit", ready: "Werkblad 9 – 10", note: "Hierdie fase word op ons eie gedoen en nie by die skool nie." },
   { key: "f5", label: "Fase 5", dates: "29 Okt", what: "Reflekteer – ons meet of dit gewerk het.", ready: "Werkblad 11" },
   { key: "ekspo1", label: "Ekspo", dates: "2 Nov", what: "Ons berei die ekspo voor.", ready: "Werkblad 12 – 14", kind: "expo" },
   { key: "ekspo2", label: "Ekspo", dates: "3 Nov", what: "Ons wys wat ons gedoen het.", ready: "Almal praat!", kind: "expo" }
@@ -149,7 +149,7 @@ export function buildVolTemplate(o: VolOptions): Template {
               title: "Die waarnemings",
               required: true,
               initialRows: 4,
-              minRows: 3,
+              minRows: 1,
               maxRows: 10,
               addLabel: "Nog ’n waarneming",
               columns: [
@@ -162,14 +162,15 @@ export function buildVolTemplate(o: VolOptions): Template {
         },
         {
           title: "Teken of plak ’n foto van die probleem",
-          fields: [{ type: "photos", key: "fotos", max: 4, help: "Laai ’n foto of ’n foto van julle tekening op. Geen herkenbare mense sonder toestemming nie." }]
+          fields: [{ type: "photos", key: "fotos", max: 4, help: "Teken die probleem op papier en laai ’n foto daarvan op, of laai ’n foto van die probleem op. Geen herkenbare mense sonder toestemming nie." }]
         }
       ],
       criteria: [
-        { id: "drie", title: "Ten minste drie waarnemings", description: "Daar is ten minste drie afsonderlike waarnemings." },
+        { id: "waarnemings", title: "Genoeg waarnemings", description: "Die groep het genoeg afsonderlike waarnemings neergeskryf om hulle latere keuse van ’n probleem te staaf. Kwaliteit en bruikbaarheid tel meer as ’n vaste getal." },
         { id: "eie-oe", title: "Eie waarnemings", description: "Die waarnemings is dinge wat die groep self op die uitstappie gesien het – nie algemene feite of inligting van die internet nie." },
         { id: "presies-waar", title: "Presies waar", description: "Elke waarneming sê presies waar dit was (’n spesifieke plek), nie net algemeen soos “op die berg” of “in die stad” nie." },
-        { id: "hoekom", title: "Hoekom dit pla", description: "By elke waarneming verduidelik die groep in eie woorde hoekom dit hulle pla." }
+        { id: "hoekom", title: "Hoekom dit pla", description: "By elke waarneming verduidelik die groep in eie woorde hoekom dit hulle pla." },
+        { id: "tekening-foto", title: "Tekening of foto", description: "Daar is ’n opgelaaide tekening of foto wat die waargenome probleem wys." }
       ]
     },
 
@@ -219,7 +220,7 @@ export function buildVolTemplate(o: VolOptions): Template {
       phase: 2,
       checkpoint: 2,
       feedback: true,
-      context: ["ws3"],
+      context: ["ws2", "ws3"],
       sections: [
         {
           fields: [
@@ -229,7 +230,7 @@ export function buildVolTemplate(o: VolOptions): Template {
               title: "Die vakke-tabel",
               required: true,
               initialRows: 5,
-              minRows: 4,
+              minRows: 1,
               maxRows: 12,
               addLabel: "Nog ’n vak",
               columns: [
@@ -242,7 +243,7 @@ export function buildVolTemplate(o: VolOptions): Template {
         }
       ],
       criteria: [
-        { id: "vakke", title: "Verskeie vakke", description: "Ten minste vier verskillende vakke is ingevul." },
+        { id: "vakke", title: "Verskeie vakke", description: "Die groep gebruik kennis of vaardighede uit verskeie relevante vakke. Daar is nie ’n kunsmatige minimum nie; die vraag is of hulle die vakkennis wat werklik kan help, breed genoeg benut." },
         { id: "inhoud", title: "Spesifieke kennis", description: "By elke vak staan spesifiek wát die groep geleer het of kan leer (’n begrip, vaardigheid of feit) – nie net “ons het daaroor geleer” nie." },
         { id: "koppel", title: "Gekoppel aan ons probleem", description: "“Hoe dit ons help” wys duidelik hoe die kennis help om húlle probleemstelling (werkblad 3) aan te pak." },
         { id: "bronne", title: "Feite met bronne", description: "Waar die groep ’n feit of syfer gebruik, word gesê waar dit vandaan kom (vak, handboek, persoon of webwerf). Kennis is korrek." }
@@ -258,7 +259,7 @@ export function buildVolTemplate(o: VolOptions): Template {
       phase: 2,
       checkpoint: 2,
       feedback: true,
-      context: ["ws3", "ws4"],
+      context: ["ws2", "ws3", "ws4"],
       sections: [
         {
           fields: [
@@ -335,7 +336,7 @@ export function buildVolTemplate(o: VolOptions): Template {
       phase: 3,
       checkpoint: 3,
       feedback: true,
-      context: ["ws3", "ws5"],
+      context: ["ws2", "ws3", "ws4", "ws5"],
       sections: [
         { title: "1. Wat gaan ons doen?", fields: [ta("wat", "", 6)] },
         { title: "2. Hoekom hierdie oplossing en nie een van die ander twee nie?", fields: [ta("hoekom", "", 5)] },
@@ -363,7 +364,7 @@ export function buildVolTemplate(o: VolOptions): Template {
       phase: 3,
       checkpoint: 3,
       feedback: true,
-      context: ["ws6"],
+      context: ["ws5", "ws6"],
       sections: [
         {
           fields: [
@@ -404,7 +405,7 @@ export function buildVolTemplate(o: VolOptions): Template {
       phase: 3,
       checkpoint: 3,
       feedback: true,
-      context: ["ws6"],
+      context: ["ws6", "ws7"],
       sections: [
         {
           intro: "Stel ’n veiligheidsplan op vir julle projek. Die veiligheid van die kinders en die omgewing moet in ag geneem word.",
@@ -415,7 +416,7 @@ export function buildVolTemplate(o: VolOptions): Template {
               title: "Die risiko-tabel",
               required: true,
               initialRows: 4,
-              minRows: 3,
+              minRows: 1,
               maxRows: 12,
               addLabel: "Nog ’n risiko",
               columns: [
@@ -433,7 +434,7 @@ export function buildVolTemplate(o: VolOptions): Template {
         }
       ],
       criteria: [
-        { id: "risiko", title: "Realistiese risiko’s", description: "Ten minste drie realistiese dinge wat by húlle spesifieke projek kan verkeerd loop." },
+        { id: "risiko", title: "Realistiese risiko’s", description: "Die plan identifiseer die realistiese dinge wat by húlle spesifieke projek kan verkeerd loop. Dit moet genoeg wees om die werklike veiligheidsgevare te dek; daar is nie ’n kunsmatige minimum nie." },
         { id: "mense-omgewing", title: "Kinders én omgewing", description: "Die plan neem die veiligheid van die kinders (leerders) én van die omgewing in ag." },
         { id: "ernstigheid", title: "Hoe erg", description: "Elke risiko het ’n ernstigheidsgraad wat sin maak." },
         { id: "keer", title: "Konkrete maatreëls", description: "By elke risiko staan ’n konkrete, uitvoerbare maatreël om dit te keer of te hanteer – nie net “ons sal versigtig wees” nie." },
@@ -450,7 +451,7 @@ export function buildVolTemplate(o: VolOptions): Template {
       phase: 4,
       checkpoint: 4,
       feedback: true,
-      context: ["ws6"],
+      context: ["ws3", "ws6", "ws7", "ws8"],
       sections: [
         {
           fields: [
@@ -475,7 +476,7 @@ export function buildVolTemplate(o: VolOptions): Template {
         }
       ],
       criteria: [
-        { id: "inskrywings", title: "Gereelde inskrywings", description: "Daar is ten minste twee gedateerde inskrywings, binne die uitvoeringstyd." },
+        { id: "inskrywings", title: "Inskrywings op die dag self", description: "Daar is minstens een gedateerde inskrywing, soos die werkboek vereis. As die uitvoering op meer as een dag plaasgevind het, is daar ’n inskrywing vir elke werksdag." },
         { id: "volledig", title: "Elke inskrywing volledig", description: "Elke inskrywing het al ses dele ingevul." },
         { id: "spesifiek", title: "Spesifiek", description: "Die inskrywings sê presies wat gedoen is (hoeveel, waar, hoe lank) – nie net “ons het gewerk” nie." },
         { id: "almal", title: "Almal het bygedra", description: "“Wie het wat gedoen” wys dat elke lid ’n deel gehad het." },
@@ -492,7 +493,7 @@ export function buildVolTemplate(o: VolOptions): Template {
       phase: 4,
       checkpoint: 4,
       feedback: true,
-      context: ["ws6", "ws9"],
+      context: ["ws3", "ws6", "ws9"],
       sections: [
         {
           fields: [
@@ -558,7 +559,7 @@ export function buildVolTemplate(o: VolOptions): Template {
       phase: 5,
       checkpoint: 5,
       feedback: true,
-      context: ["ws3", "ws6", "ws9", "ws10"],
+      context: ["ws3", "ws5", "ws6", "ws9", "ws10"],
       sections: [
         { title: "Ons het gesê ons sal weet dit werk as…", fields: [ta("gese", "", 5, { help: "Kyk terug na werkblad 6, vraag 6." })] },
         { title: "Wat het werklik gebeur?", fields: [ta("gebeur", "", 6)] },
@@ -600,13 +601,14 @@ export function buildVolTemplate(o: VolOptions): Template {
       phase: 6,
       checkpoint: 6,
       feedback: true,
+      context: ["ws3", "ws4", "ws5", "ws6", "ws10", "ws11"],
       sections: [
         {
           title: "Teken die uitleg van julle tafel",
           intro: "Waar gaan die plakkaat, die model, die foto’s en die data wees? Onthou: ’n besoeker moet julle storie van links na regs kan volg: probleem, navorsing, oplossing, uitvoering, resultate, refleksie.",
           fields: [
-            { type: "photos", key: "uitleg", max: 2, help: "Teken die uitleg op papier en laai ’n foto daarvan op." },
-            ta("beskrywing", "Beskryf die uitleg van links na regs", 5)
+            { type: "photos", key: "uitleg", max: 2, help: "Teken die uitleg op papier en laai ’n foto daarvan op. As julle nie ’n foto kan oplaai nie, beskryf die uitleg hieronder." },
+            { type: "textarea", key: "beskrywing", label: "Beskryf die uitleg van links na regs (indien geen tekening opgelaai is nie)", rows: 5 }
           ]
         },
         {
@@ -649,7 +651,7 @@ export function buildVolTemplate(o: VolOptions): Template {
         }
       ],
       criteria: [
-        { id: "uitleg", title: "Uitleg beplan", description: "Die uitleg (tekening en/of beskrywing) wys waar die plakkaat, model, foto’s en data gaan wees." },
+        { id: "uitleg", title: "Uitleg beplan", description: "Die opgelaaide tekening of, indien daar nie ’n tekening is nie, die beskrywing wys waar die plakkaat, model, foto’s en data gaan wees." },
         { id: "storie", title: "Links na regs", description: "’n Besoeker kan die storie van links na regs volg: probleem, navorsing, oplossing, uitvoering, resultate, refleksie." },
         { id: "verantwoordelik", title: "Elke punt het ’n eienaar", description: "Elke item op die kontrolelys het ’n verantwoordelike lid." }
       ]
@@ -660,11 +662,11 @@ export function buildVolTemplate(o: VolOptions): Template {
       key: "ws13",
       number: 13,
       title: "Ons aanbieding",
-      intro: "Die aanbieding moet ongeveer 5 minute duur. Elke lid van die groep moet praat.",
+      intro: "Aanbieding moet ongeveer 5 minute duur. Elke lid van die groep moet praat.",
       phase: 6,
       checkpoint: 6,
       feedback: true,
-      context: ["ws3", "ws6", "ws11"],
+      context: ["ws3", "ws4", "ws5", "ws6", "ws9", "ws10", "ws11"],
       sections: [
         {
           title: "Gee ’n volledige uiteensetting van julle aanbieding",
@@ -710,6 +712,7 @@ export function buildVolTemplate(o: VolOptions): Template {
       phase: 6,
       checkpoint: 6,
       feedback: true,
+      context: ["ws12", "ws13"],
       sections: [
         {
           fields: [
@@ -756,6 +759,7 @@ export function buildVolTemplate(o: VolOptions): Template {
       checkpoint: null,
       perMember: true,
       feedback: true,
+      context: ["ws1", "ws3", "ws5", "ws6", "ws9", "ws10", "ws11"],
       sections: [
         { title: "Verduidelik volledig jou rol in die groep. Vertel ook hoe jy gegroei het van begin tot einde.", fields: [ta("rol", "", 6)] },
         { title: "Waarop is ek trots?", fields: [ta("trots", "", 4)] },
@@ -782,9 +786,9 @@ export function buildVolTemplate(o: VolOptions): Template {
     grade: o.grade,
     defaults: { phenomenon: o.phenomenon, question: o.question, partner: o.partner, place: o.place },
     intro: {
-      how: "Hierdie werkboek vat julle stap vir stap van ’n probleem wat julle op die uitstappie gesien het, tot by ’n oplossing wat julle werklik gaan uitvoer en by die ekspo gaan wys.",
+      how: "Hierdie werkboek vat julle stap vir stap van ’n probleem wat julle op die berg gesien het, tot by ’n oplossing wat julle werklik gaan uitvoer en by die ekspo gaan wys.",
       howBullets: [
-        "Een werkboek per groep. Julle werk word outomaties gestoor.",
+        "Een werkboek per groep. Hou dit by elke projekperiode. Julle werk word outomaties gestoor.",
         "Vul dit in soos julle werk, nie die aand voor die ekspo nie. Die werkboek is julle bewys.",
         "Ses keer moet ’n onderwyser ’n bladsy afteken voordat julle verder gaan. Dit is die kontrolepunte.",
         "Daar is nie een regte antwoord nie. Daar is net antwoorde wat julle kan bewys en antwoorde wat julle nie kan bewys nie."

@@ -8,7 +8,7 @@ Groepe vul hul werkboek aanlyn in, vra KI-terugvoer teen vaste kriteria, en onde
 | Rol | Wat |
 | --- | --- |
 | **Leerdergroep** | Meld aan met ’n groepkode (geen persoonlike rekeninge nie). Vul werkblaaie in; alles stoor outomaties. Vra terugvoer so dikwels as nodig. Dien ’n kontrolepunt in sodra al sy werkblaaie “Gereed vir onderwyser” is. |
-| **KI (OpenAI)** | Beoordeel elke kriterium as *behaal / gedeeltelik / nog nie*, wys aan wat ontbreek, vra vrae, let op die vyf reëls. Skryf nooit antwoorde nie. |
+| **KI (OpenAI)** | Lees die oorspronklike werkboekopdrag, die huidige antwoord en die relevante vorige werkblaaie. Beoordeel elke kriterium as *behaal / gedeeltelik / nog nie*, wys teenstrydighede en ontbrekende bewyse uit, vra oop vrae en let op die vyf reëls. Skryf nooit antwoorde nie. |
 | **Onderwyser** | Sien elke groep se werk, die KI-terugvoer en die weergawegeskiedenis. Teken af of stuur terug met kommentaar. Kan die KI oorheers (“verklaar gereed”) en ’n kontrolepunt heropen. |
 | **Administrateur** | Projekte (uit werkboek-sjablone) en onderwysers bestuur. |
 
@@ -61,7 +61,7 @@ npm run seed                # skool, admin, Gr 8- en Gr 9-projekte (+ toetsgroep
 npm run dev                 # terminaal 2: http://localhost:3010
 ```
 
-Sonder `OPENAI_API_KEY` loop die terugvoer in **toetsmodus** (alles “behaal”) sodat die vloei getoets kan word.
+Sonder `OPENAI_API_KEY` loop die terugvoer in **toetsmodus** (alles “behaal”) sodat die vloei getoets kan word. Die verstekmodel is `gpt-5.4-mini` met `medium` denkvlak; albei kan met `OPENAI_MODEL` en `OPENAI_REASONING_EFFORT` verander word.
 
 ## Railway
 

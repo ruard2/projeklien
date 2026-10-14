@@ -3,7 +3,7 @@ import type { Sheet, Template } from "./tipes";
 
 export const volGr8Natuurbewaring = buildVolTemplate({
   key: "vol-gr8-natuurbewaring",
-  version: 1,
+  version: 2,
   grade: 8,
   label: "Graad 8 · Natuurbewaring",
   phenomenon: "Natuurbewaring",
@@ -39,7 +39,7 @@ export const volGr8Natuurbewaring = buildVolTemplate({
 
 export const volGr9Haweloosheid = buildVolTemplate({
   key: "vol-gr9-haweloosheid",
-  version: 1,
+  version: 2,
   grade: 9,
   label: "Graad 9 · Haweloosheid",
   phenomenon: "Haweloosheid",

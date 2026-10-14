@@ -7,6 +7,42 @@ import { asKeyed, asList, asRows, isBlank } from "./volledigheid";
 
 export type TextOptions = { members: string[]; anonymise: boolean; photoCounts?: Record<string, number> };
 
+/**
+ * Die presiese opdrag en steunmateriaal wat saam met die leerder se antwoord
+ * na die KI gaan. Dit voorkom dat die KI net die ingevulde velde sien, maar
+ * nie die werkboek se bedoeling, voorbeelde en hulpteks nie.
+ */
+export function sheetInstructionText(sheet: Sheet): string {
+  const out: string[] = [];
+  if (sheet.intro) out.push(sheet.intro);
+  for (const section of sheet.sections) {
+    if (section.title) out.push(`## ${section.title}`);
+    if (section.intro) out.push(section.intro);
+    for (const field of section.fields) {
+      if (field.type === "info") {
+        if (field.title) out.push(field.title);
+        out.push(...field.body);
+        if (field.examples?.length) {
+          out.push(...field.examples.map((e) => `${e.label}: ${e.text}`));
+        }
+        continue;
+      }
+      if (field.label) out.push(field.label);
+      if (field.help) out.push(`Hulp: ${field.help}`);
+      if (field.type === "table") {
+        out.push(`Kolomme: ${[field.rowHeader, ...field.columns.map((c) => c.label)].filter(Boolean).join(" | ")}`);
+        if (field.rows?.length) out.push(`Vaste rye: ${field.rows.map((r) => r.label).join("; ")}`);
+      } else if (field.type === "matrix") {
+        out.push(`Vrae: ${field.rows.map((r) => r.label).join("; ")}`);
+        out.push(`Gee elke idee ’n punt van ${field.min} tot ${field.max}.`);
+      } else if (field.type === "entries") {
+        out.push(`Elke ${field.entryLabel.toLowerCase()} bevat: ${field.fields.map((f) => f.label).join("; ")}.`);
+      }
+    }
+  }
+  return out.join("\n").trim();
+}
+
 function escapeRegex(s: string) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
