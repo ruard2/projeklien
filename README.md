@@ -48,7 +48,16 @@ scripts/                dev-db (plaaslike Postgres), seed, start
 ```
 
 ### ’n Nuwe werkboek byvoeg
-Skep ’n nuwe sjabloon in `lib/werkboeke/sjablone.ts` (met `buildVolTemplate` of ’n eie `Template`), registreer dit in `TEMPLATES`, en skep dan ’n projek onder **Bestuur**. Verhoog `version` as kriteria verander.
+Skep ’n nuwe sjabloon in `lib/werkboeke/sjablone.ts` (met `buildVolTemplate` of ’n eie `Template`) en registreer dit in `TEMPLATES`. Voeg brongesentreerde regressietoetse in `tests/` by en skep ’n werklike-model-toetsstel met die gedeelde harnas in `scripts/ai-audit-lib.ts`. Verhoog `version` as opdragte of kriteria verander.
+
+```bash
+npm test                    # alle werkboeke: struktuur, broninhoud, konteks en privaatheid
+npm run audit:ai:gr8        # werklike OpenAI-toetse vir Graad 8
+npm run audit:ai:gr9        # werklike OpenAI-toetse vir Graad 9
+npm run audit:ai            # albei werklike-model-toetsstelle
+```
+
+`AUDIT_CASES=ws3,ws6` beperk ’n KI-lopie tot bepaalde werkblaaie; `AUDIT_REPEATS=3` herhaal die gekose gevalle om modelwisselvalligheid op te spoor.
 
 ## Plaaslik werk (sonder Docker)
 

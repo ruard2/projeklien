@@ -10,6 +10,8 @@ export const volGr8Natuurbewaring = buildVolTemplate({
   question: "Hoe kan ons rentmeesters wees van God se skepping?",
   partner: "Vriende van die Magalies",
   place: "die Magaliesberg",
+  introHow:
+    "Hierdie werkboek vat julle stap vir stap van ’n probleem wat julle op die berg gesien het, tot by ’n oplossing wat julle werklik gaan uitvoer en by die ekspo gaan wys.",
   notExpected:
     "Julle hoef nie die probleem van natuurbewaring in sy geheel op te los nie. Julle moet leer hoe om verantwoordelik, met respek en binne julle vermoëns by te dra tot ’n werklike uitdaging. ’n Groep wat eerlik sê “ons het een behoefte vir twee weke aangespreek” doen presies wat ons vra.",
   problemInfo: {
@@ -39,13 +41,15 @@ export const volGr8Natuurbewaring = buildVolTemplate({
 
 export const volGr9Haweloosheid = buildVolTemplate({
   key: "vol-gr9-haweloosheid",
-  version: 2,
+  version: 3,
   grade: 9,
   label: "Graad 9 · Haweloosheid",
   phenomenon: "Haweloosheid",
   question: "Hoe kan ons ons verantwoordelikheid teenoor ons naaste uitleef?",
   partner: "Moeggesukkel",
   place: "Moeggesukkel",
+  introHow:
+    "Hierdie werkboek vat julle stap vir stap van ’n probleem wat julle tydens die besoek aan Moeggesukkel raakgesien het, tot by ’n oplossing wat julle werklik gaan uitvoer en by die ekspo gaan wys.",
   notExpected:
     "Julle hoef nie die probleem van haweloosheid op te los nie. Julle moet leer hoe om verantwoordelik, met respek en binne julle vermoëns by te dra tot ’n werklike uitdaging. ’n Groep wat eerlik sê “ons het een behoefte vir twee weke aangespreek” doen presies wat ons vra.",
   rules: {
@@ -92,7 +96,7 @@ export const volGr9Haweloosheid = buildVolTemplate({
   evidenceDataTable: true,
   checkpoint5Statement: "Refleksie van wat gewerk het en wat nie, is gedoen en volledig.",
   aiContext:
-    "Graad 9-leerders (14–15 jaar). Die verskynsel is haweloosheid. Die groepe werk saam met Moeggesukkel, ’n organisasie wat mense ondersteun wat haweloosheid ervaar. Die ondersoekvraag is “Hoe kan ons ons verantwoordelikheid teenoor ons naaste uitleef?” Die skool is ’n Gereformeerde skool. Die vyf reëls (menswaardigheid, toestemming, privaatheid, geen aannames, geen beloftes) is hier baie belangrik."
+    "Graad 9-leerders (14–15 jaar). Die verskynsel is haweloosheid. Die groepe werk saam met Moeggesukkel, ’n organisasie wat mense ondersteun wat haweloosheid ervaar. Die ondersoekvraag is “Hoe kan ons ons verantwoordelikheid teenoor ons naaste uitleef?” Die skool is ’n Gereformeerde skool. Die vyf reëls (menswaardigheid, toestemming, privaatheid, geen aannames, geen beloftes) is hier baie belangrik. ’n Behoefte is eers bevestig as dit uit die groep se eie gemagtigde waarneming of uit inligting van Moeggesukkel kom; die KI mag nie ’n behoefte, persoon se verhaal of toestemming aflei nie. Persoonlike kontak, foto’s en stories word slegs gebruik as die skool en Moeggesukkel dit gereël het."
 });
 
 const TEMPLATES: Record<string, Template> = {

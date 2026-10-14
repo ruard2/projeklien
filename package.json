@@ -15,6 +15,9 @@
     "migrate:deploy": "prisma migrate deploy",
     "seed": "node --env-file-if-exists=.env scripts/seed.mjs",
     "test": "tsx --test tests/*.test.ts",
+    "audit:ai:gr8": "tsx scripts/audit-ai-gr8.ts",
+    "audit:ai:gr9": "tsx scripts/audit-ai-gr9.ts",
+    "audit:ai": "npm run audit:ai:gr8 && npm run audit:ai:gr9",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

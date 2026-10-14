@@ -13,6 +13,7 @@ export type VolOptions = {
   question: string;
   partner: string;
   place: string;
+  introHow: string;
   notExpected: string;
   rules?: { intro: string; items: Rule[] };
   problemInfo: { body: string[]; examples: { label: string; text: string; tone: "bad" | "good" }[] };
@@ -786,7 +787,7 @@ export function buildVolTemplate(o: VolOptions): Template {
     grade: o.grade,
     defaults: { phenomenon: o.phenomenon, question: o.question, partner: o.partner, place: o.place },
     intro: {
-      how: "Hierdie werkboek vat julle stap vir stap van ’n probleem wat julle op die berg gesien het, tot by ’n oplossing wat julle werklik gaan uitvoer en by die ekspo gaan wys.",
+      how: o.introHow,
       howBullets: [
         "Een werkboek per groep. Hou dit by elke projekperiode. Julle werk word outomaties gestoor.",
         "Vul dit in soos julle werk, nie die aand voor die ekspo nie. Die werkboek is julle bewys.",
