@@ -195,3 +195,29 @@ model RateEvent {
 
   @@index([bucket, createdAt])
 }
+
+// Terugvoer van onderwysers aan die ontwikkelaar: oor die KI-terugvoer of die program self.
+// Word gebruik om die KI-opdrag en kriteria by te stel. Uitvoer as CSV via /api/terugvoer.
+model DevFeedback {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  schoolId    String
+  teacherId   String?
+  teacherName String
+  // "ki" (oor ’n spesifieke KI-terugvoer) | "algemeen"
+  kind        String
+  // "reg" | "te_streng" | "te_sag" | "verkeerd" | "fout" | "voorstel" | "vraag" | "ander"
+  rating      String?
+  message     String
+  page        String?
+  groupId     String?
+  sheet       String?
+  feedbackId  String?
+  criterionId String?
+  // "nuut" | "gelees" | "verwerk"
+  status      String   @default("nuut")
+  devNote     String?
+
+  @@index([schoolId, createdAt])
+  @@index([status])
+}

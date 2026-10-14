@@ -182,6 +182,55 @@ export async function changeOwnPassword(_prev: ActionState, form: FormData): Pro
   });
 }
 
+// ---------------------------------------------------------------- Terugvoer aan die ontwikkelaar
+
+const RATINGS = ["reg", "te_streng", "te_sag", "verkeerd", "fout", "voorstel", "vraag", "ander"];
+
+export async function sendDevFeedback(_prev: ActionState, form: FormData): Promise<ActionState> {
+  return attempt(async () => {
+    const t = await requireTeacher();
+    const kind = form.get("kind") === "ki" ? "ki" : "algemeen";
+    const rating = String(form.get("rating") ?? "");
+    const message = String(form.get("message") ?? "").trim().slice(0, 4000);
+    if (!message && !rating) throw new DiensFout("Skryf asseblief ’n kort opmerking.");
+    const groupId = String(form.get("groupId") ?? "") || null;
+    if (groupId) {
+      const g = await db.group.findFirst({ where: { id: groupId, project: { schoolId: t.schoolId } }, select: { id: true } });
+      if (!g) throw new DiensFout("Groep nie gevind nie.");
+    }
+    await db.devFeedback.create({
+      data: {
+        schoolId: t.schoolId,
+        teacherId: t.id,
+        teacherName: t.name,
+        kind,
+        rating: RATINGS.includes(rating) ? rating : null,
+        message,
+        page: String(form.get("page") ?? "").slice(0, 300) || null,
+        groupId,
+        sheet: String(form.get("sheet") ?? "").slice(0, 40) || null,
+        feedbackId: String(form.get("feedbackId") ?? "") || null,
+        criterionId: String(form.get("criterionId") ?? "").slice(0, 60) || null
+      }
+    });
+    revalidatePath("/onderwyser/terugvoer");
+    return "Dankie! Jou terugvoer is gestoor en gaan na die ontwikkelaar.";
+  });
+}
+
+export async function setDevFeedbackStatus(form: FormData) {
+  const a = await requireAdmin();
+  const id = String(form.get("id"));
+  const status = String(form.get("status"));
+  if (!["nuut", "gelees", "verwerk"].includes(status)) return;
+  const note = form.get("devNote");
+  await db.devFeedback.updateMany({
+    where: { id, schoolId: a.schoolId },
+    data: { status, ...(typeof note === "string" ? { devNote: note.trim().slice(0, 2000) || null } : {}) }
+  });
+  revalidatePath("/onderwyser/terugvoer");
+}
+
 export async function goToGroupByCode(form: FormData) {
   const t = await requireTeacher();
   const code = String(form.get("code") ?? "").trim().toUpperCase();

@@ -475,3 +475,20 @@ details > summary { cursor: pointer; font-weight: 600; }
   .editor { display: block; }
   textarea, input, select { border: 0 !important; padding: 0 !important; }
 }
+
+/* ---------------------------------------------------------------- Terugvoer aan ontwikkelaar */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip-opt { position: relative; border: 1px solid var(--line-2); border-radius: 999px; padding: 5px 11px; font-size: .84rem; font-weight: 600; cursor: pointer; background: #fff; user-select: none; }
+.chip-opt input { position: absolute; opacity: 0; pointer-events: none; }
+.chip-opt.on { background: var(--blue-deep); border-color: var(--blue-deep); color: #fff; }
+.chip-opt:focus-within { outline: 3px solid color-mix(in srgb, var(--blue) 35%, transparent); }
+.dev-fb { display: grid; gap: 8px; margin-top: 14px; padding: 12px; border-radius: 10px; background: #fff8e8; border: 1px dashed #e0b85c; }
+.dev-fb-title { font-weight: 700; font-size: .92rem; }
+.dev-fb-title small { font-weight: 500; color: var(--muted); }
+.dev-fb textarea, .dev-fb select { font-size: .9rem; }
+.fab-wrap { position: fixed; right: 20px; bottom: 20px; z-index: 50; display: flex; flex-direction: column; align-items: flex-end; gap: 12px; }
+.fab { width: 54px; height: 54px; border-radius: 50%; border: 0; cursor: pointer; background: var(--red); color: #fff; display: grid; place-items: center; box-shadow: 0 6px 20px rgba(211,58,47,.4); transition: transform .15s; }
+.fab:hover { transform: scale(1.06); }
+.fab-panel { width: min(360px, calc(100vw - 32px)); background: var(--card); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow-lg); padding: 14px; }
+.fab-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+@media (max-width: 640px) { .fab-wrap { right: 16px; bottom: 16px; } }

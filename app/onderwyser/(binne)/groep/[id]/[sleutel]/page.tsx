@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import AksieVorm from "@/components/AksieVorm";
 import { SheetBadge } from "@/components/Kentekens";
 import { fmtWhen, Kriteria, TerugvoerInhoud } from "@/components/Terugvoer";
+import { KiTerugvoerVorm } from "@/components/OntwikkelaarTerugvoer";
 import WerkbladVorm, { type TeacherNotes } from "@/components/WerkbladVorm";
 import { markReady, teacherNote } from "@/app/onderwyser/actions";
 import { db } from "@/lib/db";
@@ -159,6 +160,9 @@ export default async function OnderwyserWerkblad({
               ) : (
                 <p className="muted">Geen terugvoer vir hierdie bladsy nie.</p>
               )}
+              {sheet.feedback ? (
+                <KiTerugvoerVorm groupId={id} sheet={sheetKey} feedbackId={selectedFb?.id ?? null} criteria={sheet.criteria.map((c) => ({ id: c.id, title: c.title }))} />
+              ) : null}
               {feedbacks.length > 1 ? (
                 <details style={{ marginTop: 14 }}>
                   <summary className="muted" style={{ fontSize: ".88rem" }}>
