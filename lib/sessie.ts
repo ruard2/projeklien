@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "node:crypto";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { db } from "./db";
+import type { TeacherRole } from "@prisma/client";
 
 // Staatlose, ondertekende sessie-koekies: enige aantal bediener-instansies kan dit verifieer.
 
@@ -112,6 +113,20 @@ export async function requireTeacher() {
 
 export async function requireAdmin() {
   const t = await requireTeacher();
-  if (t.role !== "ADMIN") redirect("/onderwyser");
+  if (!isAdminRole(t.role)) redirect("/onderwyser");
+  return t;
+}
+
+export function isAdminRole(role: TeacherRole): boolean {
+  return role === "ADMIN" || role === "DEVELOPER";
+}
+
+export function canReviewFeedback(role: TeacherRole): boolean {
+  return role === "DEVELOPER" || role === "ADMIN";
+}
+
+export async function requireFeedbackReviewer() {
+  const t = await requireTeacher();
+  if (!canReviewFeedback(t.role)) redirect("/onderwyser/my-terugvoer");
   return t;
 }

@@ -160,7 +160,7 @@ export default async function OnderwyserWerkblad({
               ) : (
                 <p className="muted">Geen terugvoer vir hierdie bladsy nie.</p>
               )}
-              {sheet.feedback ? (
+              {selectedFb ? (
                 <KiTerugvoerVorm groupId={id} sheet={sheetKey} feedbackId={selectedFb?.id ?? null} criteria={sheet.criteria.map((c) => ({ id: c.id, title: c.title }))} />
               ) : null}
               {feedbacks.length > 1 ? (

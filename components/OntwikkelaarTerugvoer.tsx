@@ -76,12 +76,46 @@ export function KiTerugvoerVorm({
           ))}
         </select>
       ) : null}
+      <div className="grid-2">
+        <div>
+          <label className="lbl" htmlFor="ki-issue-type">Wat is die hoofprobleem?</label>
+          <select id="ki-issue-type" name="issueType" defaultValue="">
+            <option value="">Kies indien van toepassing</option>
+            <option value="verkeerde_oordeel">Verkeerde oordeel</option>
+            <option value="te_streng">Te streng</option>
+            <option value="te_sag">Te sag</option>
+            <option value="onduidelik">Onduidelike terugvoer</option>
+            <option value="antwoord_weggegee">Gee die antwoord weg</option>
+            <option value="taal">Taal of bewoording</option>
+            <option value="veiligheid_privaatheid">Veiligheid of privaatheid</option>
+            <option value="ander">Ander</option>
+          </select>
+        </div>
+        <div>
+          <label className="lbl" htmlFor="ki-expected">Wat moes die oordeel wees?</label>
+          <select id="ki-expected" name="expectedVerdict" defaultValue="">
+            <option value="">Nie van toepassing nie</option>
+            <option value="behaal">Behaal</option>
+            <option value="gedeeltelik">Gedeeltelik</option>
+            <option value="nie_behaal">Nog nie behaal nie</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label className="lbl" htmlFor="ki-scope">Hoe wyd behoort die verandering te geld?</label>
+        <select id="ki-scope" name="scope" defaultValue="hierdie_antwoord">
+          <option value="hierdie_antwoord">Net hierdie antwoord</option>
+          <option value="hierdie_werkblad">Hierdie werkblad vir alle groepe</option>
+          <option value="hierdie_werkboek">Hierdie hele werkboek</option>
+          <option value="alle_werkboeke">Alle werkboeke</option>
+        </select>
+      </div>
       <textarea name="message" rows={3} placeholder="Wat moet die KI anders doen? Bv. “Hierdie probleemstelling is goed genoeg vir Gr 9 – moenie so streng wees nie.”" />
       <div className="btn-row">
         <button className="btn sm primary" disabled={pending}>
           {pending ? <span className="spinner" /> : null} Stuur
         </button>
-        {state?.ok ? <small style={{ color: "var(--ok)" }}>✓ Gestoor – dankie!</small> : null}
+        {state?.ok ? <small style={{ color: "var(--ok)" }}>✓ Gestoor – volg dit onder “My terugvoer”.</small> : null}
         {state?.error ? <small style={{ color: "var(--red)" }}>{state.error}</small> : null}
       </div>
     </form>
@@ -119,7 +153,7 @@ export function TerugvoerKnoppie() {
               <button className="btn primary sm" disabled={pending}>
                 {pending ? <span className="spinner" /> : null} Stuur
               </button>
-              {state?.ok ? <small style={{ color: "var(--ok)" }}>✓ Dankie!</small> : null}
+              {state?.ok ? <small style={{ color: "var(--ok)" }}>✓ Gestoor – volg dit onder “My terugvoer”.</small> : null}
               {state?.error ? <small style={{ color: "var(--red)" }}>{state.error}</small> : null}
             </div>
           </form>

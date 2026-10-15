@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { fout } from "@/lib/api";
-import { currentTeacher } from "@/lib/sessie";
+import { canReviewFeedback, currentTeacher } from "@/lib/sessie";
 import { devFeedbackRows, toCsv } from "@/lib/terugvoer-uitvoer";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 /** Uitvoer van alle onderwyser-terugvoer: ?formaat=csv (verstek, vir Excel) of ?formaat=json */
 export async function GET(req: Request) {
   const t = await currentTeacher();
-  if (!t || t.role !== "ADMIN") return fout("Geen toegang nie.", 403);
+  if (!t || !canReviewFeedback(t.role)) return fout("Geen toegang nie.", 403);
   const url = new URL(req.url);
   const rows = await devFeedbackRows(t.schoolId, { status: url.searchParams.get("status") || undefined });
   const stamp = new Date().toISOString().slice(0, 10);

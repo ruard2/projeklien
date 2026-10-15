@@ -1,5 +1,5 @@
 import AksieVorm from "@/components/AksieVorm";
-import { changeOwnPassword, createProject, createTeacher, toggleProject, toggleTeacher } from "@/app/onderwyser/actions";
+import { changeOwnPassword, changeTeacherRole, createProject, createTeacher, toggleProject, toggleTeacher } from "@/app/onderwyser/actions";
 import { aiConfigured, aiModel } from "@/lib/ki";
 import { storageDriver } from "@/lib/berging";
 import { db } from "@/lib/db";
@@ -95,7 +95,8 @@ export default async function Beheer() {
                 {teachers.map((t) => (
                   <tr key={t.id}>
                     <td>
-                      <b>{t.name}</b> {t.role === "ADMIN" ? <span className="badge plain blue">admin</span> : null}
+                      <b>{t.name}</b>{" "}
+                      {t.role === "DEVELOPER" ? <span className="badge plain blue">ontwikkelaar</span> : t.role === "ADMIN" ? <span className="badge plain blue">admin</span> : null}
                       <div className="muted" style={{ fontSize: ".8rem" }}>
                         {t.email}
                         {!t.active ? " · gedeaktiveer" : ""}
@@ -103,10 +104,21 @@ export default async function Beheer() {
                     </td>
                     <td style={{ textAlign: "right" }}>
                       {t.id !== a.id ? (
-                        <form action={toggleTeacher}>
-                          <input type="hidden" name="teacherId" value={t.id} />
-                          <button className="btn sm">{t.active ? "Deaktiveer" : "Aktiveer"}</button>
-                        </form>
+                        <div className="btn-row" style={{ justifyContent: "flex-end" }}>
+                          <form action={changeTeacherRole} className="row" style={{ gap: 5 }}>
+                            <input type="hidden" name="teacherId" value={t.id} />
+                            <select name="role" defaultValue={t.role} aria-label={`Rol vir ${t.name}`} style={{ minWidth: 130 }}>
+                              <option value="TEACHER">Onderwyser</option>
+                              <option value="ADMIN">Administrateur</option>
+                              <option value="DEVELOPER">Ontwikkelaar</option>
+                            </select>
+                            <button className="btn sm">Stoor rol</button>
+                          </form>
+                          <form action={toggleTeacher}>
+                            <input type="hidden" name="teacherId" value={t.id} />
+                            <button className="btn sm">{t.active ? "Deaktiveer" : "Aktiveer"}</button>
+                          </form>
+                        </div>
                       ) : (
                         <small>jy</small>
                       )}
@@ -136,6 +148,7 @@ export default async function Beheer() {
                 <select name="role">
                   <option value="TEACHER">Onderwyser</option>
                   <option value="ADMIN">Administrateur</option>
+                  <option value="DEVELOPER">Ontwikkelaar</option>
                 </select>
               </div>
             </div>

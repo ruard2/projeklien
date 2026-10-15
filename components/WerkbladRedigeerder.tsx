@@ -295,7 +295,7 @@ export default function WerkbladRedigeerder(p: Props) {
             </div>
             <div className="pb">
               {feedbackView ? (
-                <TerugvoerInhoud fb={feedbackView} criteria={p.sheet.criteria} />
+                <TerugvoerInhoud fb={feedbackView} criteria={p.sheet.criteria} reportSheet={p.sheetKey} />
               ) : (
                 <>
                   <p className="muted" style={{ fontSize: ".9rem" }}>

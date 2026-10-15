@@ -1,5 +1,6 @@
 import type { FeedbackResult } from "@/lib/ki";
 import type { Criterion } from "@/lib/werkboeke/tipes";
+import RapporteerKi from "./RapporteerKi";
 
 const MARK: Record<string, string> = { behaal: "✓", gedeeltelik: "~", nie_behaal: "!", pending: "" };
 const VERDICT_LABEL: Record<string, string> = { behaal: "Behaal", gedeeltelik: "Gedeeltelik", nie_behaal: "Nog nie" };
@@ -11,6 +12,7 @@ export type FeedbackView = {
   source: string;
   createdAt: string;
   stale: boolean;
+  report?: { status: string; resolution: string | null } | null;
 };
 
 export function fmtWhen(iso: string) {
@@ -44,7 +46,7 @@ export function Kriteria({ criteria, result, showDescriptions = true }: { criter
   );
 }
 
-export function TerugvoerInhoud({ fb, criteria }: { fb: FeedbackView; criteria: Criterion[] }) {
+export function TerugvoerInhoud({ fb, criteria, reportSheet }: { fb: FeedbackView; criteria: Criterion[]; reportSheet?: string }) {
   const r = fb.result;
   return (
     <div style={{ display: "grid", gap: 14 }}>
@@ -107,6 +109,7 @@ export function TerugvoerInhoud({ fb, criteria }: { fb: FeedbackView; criteria: 
           <Kriteria criteria={criteria} result={r} />
         </div>
       ) : null}
+      {reportSheet ? <RapporteerKi feedbackId={fb.id} sheet={reportSheet} existing={fb.report ?? null} /> : null}
     </div>
   );
 }

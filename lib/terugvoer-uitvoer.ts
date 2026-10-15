@@ -32,13 +32,21 @@ export type DevFeedbackRow = {
   groepkode: string;
   werkblad: string;
   kriterium: string;
+  probleemtipe: string;
+  verwagte_oordeel: string;
+  omvang: string;
   bladsy: string;
+  ki_model: string;
+  ki_opdragweergawe: string;
+  werkboekweergawe: string;
   ki_gereed: string;
   ki_opsomming: string;
   ki_kriteria: string;
   ki_oor_kriterium: string;
   groep_teks: string;
   ontwikkelaar_nota: string;
+  antwoord_aan_onderwyser: string;
+  regressietoets: string;
 };
 
 export async function devFeedbackRows(schoolId: string, opts: { status?: string; take?: number } = {}): Promise<DevFeedbackRow[]> {
@@ -87,13 +95,21 @@ export async function devFeedbackRows(schoolId: string, opts: { status?: string;
       groepkode: g?.code ?? "",
       werkblad: sheet ? `${sheet.number ? `WB${sheet.number} ` : ""}${sheet.title}` : i.sheet ?? "",
       kriterium: crit ? crit.title : i.criterionId ?? "",
+      probleemtipe: i.issueType ?? "",
+      verwagte_oordeel: i.expectedVerdict ?? "",
+      omvang: i.scope ?? "",
       bladsy: i.page ?? "",
+      ki_model: fb?.source ?? "",
+      ki_opdragweergawe: fb?.promptVer ?? "",
+      werkboekweergawe: fb ? String(fb.sheetVer) : "",
       ki_gereed: fb ? (fb.ready ? "ja" : "nee") : "",
       ki_opsomming: result?.opsomming ?? "",
       ki_kriteria: result?.kriteria.map((k) => `${k.id}=${k.oordeel}`).join("; ") ?? "",
       ki_oor_kriterium: result?.kriteria.find((k) => k.id === i.criterionId)?.terugvoer ?? "",
       groep_teks: groepTeks,
-      ontwikkelaar_nota: i.devNote ?? ""
+      ontwikkelaar_nota: i.devNote ?? "",
+      antwoord_aan_onderwyser: i.developerReply ?? "",
+      regressietoets: i.regressionStatus
     });
   }
   return rows;

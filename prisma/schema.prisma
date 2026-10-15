@@ -20,9 +20,12 @@ model School {
   createdAt DateTime  @default(now())
   teachers  Teacher[]
   projects  Project[]
+  aiReports AiReport[]
+  aiEvalCases AiEvalCase[]
 }
 
 enum TeacherRole {
+  DEVELOPER
   ADMIN
   TEACHER
 }
@@ -79,6 +82,7 @@ model Group {
   feedback    Feedback[]
   checkpoints Checkpoint[]
   photos      Photo[]
+  aiReports   AiReport[]
 
   @@index([projectId, archived])
 }
@@ -135,8 +139,13 @@ model Feedback {
   result    Json
   // "gpt-…" | "toetsmodus" | "volledigheid"
   source    String
+  // Weergawe van die KI-opdrag waarmee hierdie antwoord gemaak is.
+  promptVer String   @default("v1")
   sheetVer  Int      @default(1)
+  // Bevrore, geanonimiseerde invoer waarmee die KI-antwoord gemaak is.
+  inputSnapshot Json?
   createdAt DateTime @default(now())
+  aiReports AiReport[]
 
   @@index([groupId, sheet, createdAt])
   @@index([groupId, createdAt])
@@ -214,10 +223,71 @@ model DevFeedback {
   sheet       String?
   feedbackId  String?
   criterionId String?
+  // Gestruktureerde verduideliking van wat verkeerd is en hoe wyd 'n aanpassing moet geld.
+  issueType      String?
+  expectedVerdict String?
+  scope          String?
   // "nuut" | "gelees" | "verwerk"
   status      String   @default("nuut")
+  // Interne nota is net vir die ontwikkelaar; antwoord is vir die onderwyser sigbaar.
   devNote     String?
+  developerReply String?
+  respondedAt DateTime?
+  // "nie" | "beplan" | "bygevoeg" – spoor permanente regressietoetse.
+  regressionStatus String @default("nie")
 
   @@index([schoolId, createdAt])
+  @@index([teacherId, createdAt])
   @@index([status])
+}
+
+// 'n Leerdergroep kan 'n onveilige, verkeerde of onvanpaste KI-antwoord rapporteer.
+// Geen leerdernaam word gestoor nie; konteks word via die groep, werkblad en KI-antwoord gekoppel.
+model AiReport {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  schoolId   String
+  school     School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  groupId    String
+  group      Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  sheet      String
+  feedbackId String
+  feedback   Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  category   String
+  message    String
+  // "nuut" | "gelees" | "verwerk"
+  status     String   @default("nuut")
+  devNote    String?
+  resolution String?
+  resolvedAt DateTime?
+
+  @@index([schoolId, status, createdAt])
+  @@index([groupId, sheet, createdAt])
+  @@unique([groupId, feedbackId])
+}
+
+// Herhaalbare, werklike KI-toets wat uit goedgekeurde onderwyserterugvoer ontstaan.
+model AiEvalCase {
+  id                  String   @id @default(cuid())
+  schoolId            String
+  school              School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  sourceDevFeedbackId String   @unique
+  createdBy           String
+  title               String
+  templateKey         String
+  sheet               String
+  input               Json
+  criterionId         String
+  expectedVerdict     String
+  active              Boolean  @default(true)
+  notes               String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+  lastRunAt           DateTime?
+  lastPassed          Boolean?
+  lastSummary         String?
+  lastResult          Json?
+
+  @@index([schoolId, active])
+  @@index([lastPassed])
 }

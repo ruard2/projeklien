@@ -3,6 +3,7 @@
 //
 // Omgewing:
 //   SEED_ADMIN_EMAIL, SEED_ADMIN_PASSWORD, SEED_ADMIN_NAME  – eerste admin (slegs as dit nog nie bestaan nie)
+//   SEED_DEVELOPER_EMAIL, SEED_DEVELOPER_PASSWORD, SEED_DEVELOPER_NAME – aparte ontwikkelaar
 //   SEED_DEMO=1  – skep ook twee toetsgroepe met vaste kodes G8-TEST88 en G9-TEST99 (slegs vir toetsing)
 import { PrismaClient } from "@prisma/client";
 import { randomBytes, scryptSync } from "node:crypto";
@@ -36,6 +37,26 @@ if (email && password) {
   }
 } else {
   console.log("[seed] SEED_ADMIN_EMAIL/SEED_ADMIN_PASSWORD nie gestel nie – geen admin geskep nie.");
+}
+
+const developerEmail = (process.env.SEED_DEVELOPER_EMAIL || "").trim().toLowerCase();
+const developerPassword = process.env.SEED_DEVELOPER_PASSWORD || "";
+if (developerEmail && developerPassword) {
+  const existing = await db.teacher.findUnique({ where: { email: developerEmail } });
+  if (!existing) {
+    await db.teacher.create({
+      data: {
+        schoolId: school.id,
+        email: developerEmail,
+        name: process.env.SEED_DEVELOPER_NAME || "Ontwikkelaar",
+        role: "DEVELOPER",
+        passwordHash: hashPassword(developerPassword)
+      }
+    });
+    console.log(`[seed] Ontwikkelaar geskep: ${developerEmail}`);
+  } else {
+    console.log(`[seed] Ontwikkelaar bestaan reeds: ${developerEmail}`);
+  }
 }
 
 const PROJECTS = [

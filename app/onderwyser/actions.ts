@@ -4,8 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { decideCheckpoint, DiensFout, reopenCheckpoint, saveTeacherNote, teacherMarkReady } from "@/lib/diens";
+import { createOrUpdateEvalCase, runActiveEvalCases, runEvalCase } from "@/lib/evaluasie";
 import { newGroupCode } from "@/lib/kodes";
-import { requireAdmin, requireTeacher } from "@/lib/sessie";
+import { requireAdmin, requireFeedbackReviewer, requireTeacher } from "@/lib/sessie";
+import { DEV_FEEDBACK_STATUSES, EXPECTED_VERDICTS, FEEDBACK_SCOPES, ISSUE_TYPES, REGRESSION_STATUSES, cleanText, isOneOf } from "@/lib/terugvoer-beheer";
 import { getTemplate, listTemplates } from "@/lib/werkboeke/sjablone";
 import { hashPassword } from "@/lib/wagwoord";
 
@@ -155,7 +157,8 @@ export async function createTeacher(_prev: ActionState, form: FormData): Promise
     const name = String(form.get("name") ?? "").trim().slice(0, 80);
     const email = String(form.get("email") ?? "").trim().toLowerCase();
     const password = String(form.get("password") ?? "");
-    const role = form.get("role") === "ADMIN" ? "ADMIN" : "TEACHER";
+    const requestedRole = String(form.get("role") ?? "TEACHER");
+    const role = requestedRole === "DEVELOPER" ? "DEVELOPER" : requestedRole === "ADMIN" ? "ADMIN" : "TEACHER";
     if (!name || !email.includes("@")) throw new DiensFout("Vul ’n naam en geldige e-pos in.");
     if (password.length < 8) throw new DiensFout("Die wagwoord moet minstens 8 karakters wees.");
     if (await db.teacher.findUnique({ where: { email } })) throw new DiensFout("Daar is reeds ’n onderwyser met hierdie e-pos.");
@@ -169,6 +172,16 @@ export async function toggleTeacher(form: FormData) {
   const a = await requireAdmin();
   const t = await db.teacher.findFirst({ where: { id: String(form.get("teacherId")), schoolId: a.schoolId } });
   if (t && t.id !== a.id) await db.teacher.update({ where: { id: t.id }, data: { active: !t.active } });
+  revalidatePath("/onderwyser/beheer");
+}
+
+export async function changeTeacherRole(form: FormData) {
+  const a = await requireAdmin();
+  const teacherId = String(form.get("teacherId"));
+  const role = String(form.get("role"));
+  if (!isOneOf(role, ["DEVELOPER", "ADMIN", "TEACHER"] as const)) return;
+  if (teacherId === a.id) return;
+  await db.teacher.updateMany({ where: { id: teacherId, schoolId: a.schoolId }, data: { role } });
   revalidatePath("/onderwyser/beheer");
 }
 
@@ -191,12 +204,19 @@ export async function sendDevFeedback(_prev: ActionState, form: FormData): Promi
     const t = await requireTeacher();
     const kind = form.get("kind") === "ki" ? "ki" : "algemeen";
     const rating = String(form.get("rating") ?? "");
-    const message = String(form.get("message") ?? "").trim().slice(0, 4000);
+    const message = cleanText(form.get("message"), 4000);
     if (!message && !rating) throw new DiensFout("Skryf asseblief ’n kort opmerking.");
     const groupId = String(form.get("groupId") ?? "") || null;
+    const sheet = String(form.get("sheet") ?? "").slice(0, 40) || null;
+    const feedbackId = String(form.get("feedbackId") ?? "") || null;
     if (groupId) {
       const g = await db.group.findFirst({ where: { id: groupId, project: { schoolId: t.schoolId } }, select: { id: true } });
       if (!g) throw new DiensFout("Groep nie gevind nie.");
+    }
+    if (kind === "ki") {
+      if (!groupId || !sheet || !feedbackId) throw new DiensFout("Kies ’n bestaande KI-antwoord om te beoordeel.");
+      const feedback = await db.feedback.findFirst({ where: { id: feedbackId, groupId, sheet }, select: { id: true } });
+      if (!feedback) throw new DiensFout("Hierdie KI-antwoord kon nie gevind word nie.");
     }
     await db.devFeedback.create({
       data: {
@@ -208,9 +228,12 @@ export async function sendDevFeedback(_prev: ActionState, form: FormData): Promi
         message,
         page: String(form.get("page") ?? "").slice(0, 300) || null,
         groupId,
-        sheet: String(form.get("sheet") ?? "").slice(0, 40) || null,
-        feedbackId: String(form.get("feedbackId") ?? "") || null,
-        criterionId: String(form.get("criterionId") ?? "").slice(0, 60) || null
+        sheet,
+        feedbackId,
+        criterionId: String(form.get("criterionId") ?? "").slice(0, 60) || null,
+        issueType: isOneOf(String(form.get("issueType") ?? ""), ISSUE_TYPES) ? String(form.get("issueType")) : null,
+        expectedVerdict: isOneOf(String(form.get("expectedVerdict") ?? ""), EXPECTED_VERDICTS) ? String(form.get("expectedVerdict")) : null,
+        scope: isOneOf(String(form.get("scope") ?? ""), FEEDBACK_SCOPES) ? String(form.get("scope")) : null
       }
     });
     revalidatePath("/onderwyser/terugvoer");
@@ -219,14 +242,74 @@ export async function sendDevFeedback(_prev: ActionState, form: FormData): Promi
 }
 
 export async function setDevFeedbackStatus(form: FormData) {
-  const a = await requireAdmin();
+  const a = await requireFeedbackReviewer();
   const id = String(form.get("id"));
   const status = String(form.get("status"));
-  if (!["nuut", "gelees", "verwerk"].includes(status)) return;
-  const note = form.get("devNote");
+  if (!isOneOf(status, DEV_FEEDBACK_STATUSES)) return;
+  const note = cleanText(form.get("devNote"), 2000);
+  const reply = cleanText(form.get("developerReply"), 2000);
+  const regressionStatus = String(form.get("regressionStatus") ?? "nie");
+  const expectedVerdict = String(form.get("expectedVerdict") ?? "");
   await db.devFeedback.updateMany({
     where: { id, schoolId: a.schoolId },
-    data: { status, ...(typeof note === "string" ? { devNote: note.trim().slice(0, 2000) || null } : {}) }
+    data: {
+      status,
+      devNote: note || null,
+      developerReply: reply || null,
+      respondedAt: reply ? new Date() : null,
+      regressionStatus: isOneOf(regressionStatus, REGRESSION_STATUSES) ? regressionStatus : "nie",
+      expectedVerdict: isOneOf(expectedVerdict, EXPECTED_VERDICTS) ? expectedVerdict : null
+    }
+  });
+  revalidatePath("/onderwyser/terugvoer");
+  revalidatePath("/onderwyser/my-terugvoer");
+}
+
+export async function promoteFeedbackToEval(form: FormData) {
+  const reviewer = await requireFeedbackReviewer();
+  const expectedVerdict = String(form.get("expectedVerdict") ?? "");
+  if (!isOneOf(expectedVerdict, ["behaal", "gedeeltelik", "nie_behaal"] as const)) return;
+  await createOrUpdateEvalCase({
+    schoolId: reviewer.schoolId,
+    devFeedbackId: String(form.get("id")),
+    createdBy: reviewer.name,
+    expectedVerdict,
+    notes: cleanText(form.get("devNote"), 2000)
+  });
+  revalidatePath("/onderwyser/terugvoer");
+  revalidatePath("/onderwyser/evaluasies");
+}
+
+export async function runEvalCaseAction(form: FormData) {
+  const reviewer = await requireFeedbackReviewer();
+  await runEvalCase(String(form.get("id")), reviewer.schoolId);
+  revalidatePath("/onderwyser/evaluasies");
+}
+
+export async function runAllEvalCasesAction() {
+  const reviewer = await requireFeedbackReviewer();
+  await runActiveEvalCases(reviewer.schoolId);
+  revalidatePath("/onderwyser/evaluasies");
+}
+
+export async function toggleEvalCase(form: FormData) {
+  const reviewer = await requireFeedbackReviewer();
+  const id = String(form.get("id"));
+  const testCase = await db.aiEvalCase.findFirst({ where: { id, schoolId: reviewer.schoolId }, select: { active: true } });
+  if (testCase) await db.aiEvalCase.update({ where: { id }, data: { active: !testCase.active } });
+  revalidatePath("/onderwyser/evaluasies");
+}
+
+export async function setAiReportStatus(form: FormData) {
+  const a = await requireFeedbackReviewer();
+  const id = String(form.get("id"));
+  const status = String(form.get("status"));
+  if (!isOneOf(status, DEV_FEEDBACK_STATUSES)) return;
+  const resolution = cleanText(form.get("resolution"), 2000);
+  const devNote = cleanText(form.get("devNote"), 2000);
+  await db.aiReport.updateMany({
+    where: { id, schoolId: a.schoolId },
+    data: { status, resolution: resolution || null, devNote: devNote || null, resolvedAt: status === "verwerk" ? new Date() : null }
   });
   revalidatePath("/onderwyser/terugvoer");
 }

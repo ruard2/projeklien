@@ -1,13 +1,13 @@
 // Besigheidslogika vir werkboeke: stoor, terugvoer, indien en aftekening.
 // Alle reëls oor wat wanneer mag gebeur, word hier (bediener-kant) afgedwing.
 
-import type { Checkpoint, Group, Prisma, Project, Response } from "@prisma/client";
+import type { Checkpoint, Group, Prisma, Response } from "@prisma/client";
 import { db } from "./db";
 import { dataHash } from "./hash";
-import { generateFeedback, isReady, type FeedbackResult } from "./ki";
-import { getSheet, getTemplate, parseSheetKey } from "./werkboeke/sjablone";
+import { AI_PROMPT_VERSION, generateFeedback, isReady, type FeedbackResult } from "./ki";
+import { buildFeedbackInput, snapshotFeedbackInput } from "./ki-invoer";
+import { getSheet, getTemplate } from "./werkboeke/sjablone";
 import { canSubmit, sheetAccess, type CheckpointState } from "./werkboeke/toegang";
-import { sheetToText } from "./werkboeke/teks";
 import type { Sheet, SheetData, Template } from "./werkboeke/tipes";
 import { missingFields } from "./werkboeke/volledigheid";
 
@@ -27,10 +27,6 @@ const MAX_DATA_BYTES = 200_000;
 export function membersOf(group: Pick<Group, "members">): string[] {
   const m = Array.isArray(group.members) ? (group.members as unknown[]) : [];
   return [0, 1, 2, 3].map((i) => (typeof m[i] === "string" ? (m[i] as string) : ""));
-}
-
-export function projectInfo(project: Project) {
-  return { phenomenon: project.phenomenon, question: project.question, partner: project.partner, grade: project.grade };
 }
 
 export async function loadWorkbook(groupId: string) {
@@ -132,7 +128,7 @@ async function snapshot(groupId: string, sheet: string, revision: number, data: 
 
 export async function requestFeedback(groupId: string, sheetKey: string) {
   const state = await getSheetState(groupId, sheetKey);
-  const { group, template, members, sheet, access } = state;
+  const { template, sheet, access } = state;
   if (!sheet.feedback) throw new DiensFout("Hierdie bladsy het nie terugvoer nie.");
   if (!access.editable) throw new DiensFout(access.reason ?? "Hierdie werkblad is gesluit.", 423, "gesluit");
   const response =
@@ -149,6 +145,7 @@ export async function requestFeedback(groupId: string, sheetKey: string) {
 
   let result: FeedbackResult;
   let source: string;
+  let inputSnapshot: Prisma.InputJsonValue | undefined;
   if (missing.length) {
     source = "volledigheid";
     result = {
@@ -160,49 +157,26 @@ export async function requestFeedback(groupId: string, sheetKey: string) {
       ontbrekend: missing
     };
   } else {
-    const photoCounts = await photoCountsFor(groupId, sheetKey);
-    const contextTexts = (
-      await Promise.all((sheet.context ?? []).map(async (k) => {
-        const s = template.sheets.find((x) => x.key === k);
-        const r = group.responses.find((x) => x.sheet === k);
-        if (!s || !r) return null;
-        const contextPhotoCounts = await photoCountsFor(groupId, k);
-        return {
-          title: `Werkblad ${s.number}: ${s.title}`,
-          text: sheetToText(s, asData(r.data), { members, anonymise: true, photoCounts: contextPhotoCounts })
-        };
-      }))
-    )
-      .filter((x): x is { title: string; text: string } => Boolean(x));
-
-    let extraContext: string | undefined;
-    if (sheet.key === "ws14") {
-      extraContext = `WERKLIKE STAND VAN KONTROLEPUNTE: ${template.checkpoints
-        .map((c) => `Kontrolepunt ${c.number}: ${group.checkpoints.find((x) => x.number === c.number)?.status === "APPROVED" ? "afgeteken" : "nog nie afgeteken nie"}`)
-        .join("; ")}.`;
-    }
-    const { member } = parseSheetKey(sheetKey);
-    if (member) {
-      extraContext = [extraContext, `Hierdie is die persoonlike refleksie van Lid ${member}. Gebruik die rolverdeling en die projekverloop as konteks, maar beoordeel net wat hierdie lid self geskryf het.`]
-        .filter(Boolean)
-        .join("\n");
-    }
-
-    const out = await generateFeedback({
-      template,
-      sheet,
-      project: projectInfo(group.project),
-      sheetText: sheetToText(sheet, data, { members, anonymise: true, photoCounts }),
-      contextTexts,
-      extraContext
-    });
+    const input = await buildFeedbackInput(groupId, sheetKey, response.revision);
+    inputSnapshot = snapshotFeedbackInput(input, sheetKey) as unknown as Prisma.InputJsonValue;
+    const out = await generateFeedback(input);
     result = out.result;
     source = out.source;
   }
 
   const ready = isReady(sheet, result);
   const feedback = await db.feedback.create({
-    data: { groupId, sheet: sheetKey, revision: response.revision, ready, result: result as unknown as Prisma.InputJsonValue, source, sheetVer: template.version }
+    data: {
+      groupId,
+      sheet: sheetKey,
+      revision: response.revision,
+      ready,
+      result: result as unknown as Prisma.InputJsonValue,
+      source,
+      promptVer: AI_PROMPT_VERSION,
+      sheetVer: template.version,
+      inputSnapshot
+    }
   });
 
   // Die status geld net vir die presiese weergawe wat beoordeel is.
@@ -213,11 +187,6 @@ export async function requestFeedback(groupId: string, sheetKey: string) {
   await snapshot(groupId, sheetKey, response.revision, data, "terugvoer");
 
   return { feedback, ready };
-}
-
-async function photoCountsFor(groupId: string, sheet: string): Promise<Record<string, number>> {
-  const rows = await db.photo.groupBy({ by: ["field"], where: { groupId, sheet }, _count: { _all: true } });
-  return Object.fromEntries(rows.map((r) => [r.field, r._count._all]));
 }
 
 // ---------------------------------------------------------------- Kontrolepunte

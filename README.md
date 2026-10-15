@@ -11,11 +11,16 @@ Groepe vul hul werkboek aanlyn in, vra KI-terugvoer teen vaste kriteria, en onde
 | **KI (OpenAI)** | Lees die oorspronklike werkboekopdrag, die huidige antwoord en die relevante vorige werkblaaie. Beoordeel elke kriterium as *behaal / gedeeltelik / nog nie*, wys teenstrydighede en ontbrekende bewyse uit, vra oop vrae en let op die vyf reëls. Skryf nooit antwoorde nie. |
 | **Onderwyser** | Sien elke groep se werk, die KI-terugvoer en die weergawegeskiedenis. Teken af of stuur terug met kommentaar. Kan die KI oorheers (“verklaar gereed”) en ’n kontrolepunt heropen. |
 | **Administrateur** | Projekte (uit werkboek-sjablone) en onderwysers bestuur. |
+| **Ontwikkelaar** | Het administrateurtoegang en verwerk onderwyserterugvoer en leerderverslae oor KI-antwoorde. |
 
 Reëls wat bediener-kant afgedwing word:
 - Werkblaaie van kontrolepunt *n* gaan eers oop wanneer kontrolepunt *n–1* afgeteken is.
 - Ingediende en afgetekende werkblaaie is gesluit.
 - “Gereed” geld net vir die presiese weergawe wat beoordeel is (hash); enige verandering daarna vereis nuwe terugvoer.
+- Onderwysers se kommentaar verander nooit die KI outomaties nie. Dit gaan deur ’n mens-beheerde ry: nuut → gelees → verwerk, met ’n antwoord aan die onderwyser en ’n aanduiding of ’n regressietoets bygevoeg is.
+- Leerders kan ’n spesifieke KI-antwoord rapporteer sonder dat ’n leerdernaam gestoor word.
+- Elke KI-antwoord stoor die model-, opdrag- en werkboekweergawe vir ouditering.
+- Goedgekeurde onderwyserterugvoer kan as ’n uitvoerbare KI-toets gestoor word. Die toets vries die geanonimiseerde invoer, roep die werklike model weer en vergelyk die kriterium met die verwagte oordeel.
 - Gelyktydige wysigings deur twee groeplede word opgespoor (revisienommer) – niks word stilweg oorskryf nie.
 
 ### Privaatheid (POPIA)
@@ -87,3 +92,4 @@ Sonder `OPENAI_API_KEY` loop die terugvoer in **toetsmodus** (alles “behaal”
 - Geen toestand in die bediener se geheue nie: sessies is ondertekende koekies, tempo-beperking is in Postgres → Railway kan veelvuldige replikas laat loop.
 - Foto’s skuif na ’n S3-versoenbare bucket deur net `S3_BUCKET` (+ sleutels) te stel.
 - Multi-skool: elke skool het eie onderwysers en projekte; groepkodes is globaal uniek.
+- `npm run audit:ai:feedback` loop alle aktiewe KI-toetse wat uit onderwyserterugvoer geskep is.

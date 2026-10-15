@@ -7,6 +7,8 @@ import { z } from "zod";
 import type { Sheet, Template } from "./werkboeke/tipes";
 import { sheetInstructionText } from "./werkboeke/teks";
 
+export const AI_PROMPT_VERSION = "2026-10-15.1";
+
 export const VERDICTS = ["behaal", "gedeeltelik", "nie_behaal"] as const;
 export const RULE_NAMES = ["Menswaardigheid", "Toestemming", "Privaatheid", "Geen aannames", "Geen beloftes"] as const;
 export type Verdict = (typeof VERDICTS)[number];

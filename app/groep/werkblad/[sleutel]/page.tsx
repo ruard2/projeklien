@@ -53,6 +53,9 @@ export default async function WerkbladBladsy({ params }: { params: Promise<{ sle
     db.feedback.count({ where: { groupId: g.id, sheet: sheetKey } })
   ]);
 
+  const report = feedback
+    ? await db.aiReport.findFirst({ where: { groupId: g.id, sheet: sheetKey, feedbackId: feedback.id }, orderBy: { createdAt: "desc" }, select: { status: true, resolution: true } })
+    : null;
   const data = (response?.data ?? {}) as SheetData;
   const currentHash = dataHash(data);
   const fbView: FeedbackView | null = feedback
@@ -62,7 +65,8 @@ export default async function WerkbladBladsy({ params }: { params: Promise<{ sle
         ready: feedback.ready,
         source: feedback.source,
         createdAt: feedback.createdAt.toISOString(),
-        stale: feedback.revision !== response?.revision
+        stale: feedback.revision !== response?.revision,
+        report
       }
     : null;
 
