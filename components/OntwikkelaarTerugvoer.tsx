@@ -4,13 +4,6 @@ import { usePathname } from "next/navigation";
 import { useActionState, useEffect, useRef, useState } from "react";
 import { sendDevFeedback, type ActionState } from "@/app/onderwyser/actions";
 
-const KI_RATINGS = [
-  { value: "reg", label: "👍 Reg" },
-  { value: "te_streng", label: "Te streng" },
-  { value: "te_sag", label: "Te sag" },
-  { value: "verkeerd", label: "👎 Verkeerd" }
-];
-
 const GENERAL = [
   { value: "fout", label: "🐞 Fout" },
   { value: "voorstel", label: "💡 Voorstel" },
@@ -58,66 +51,90 @@ export function KiTerugvoerVorm({
   return (
     <form ref={form} action={action} className="dev-fb">
       <div className="dev-fb-title">
-        <span aria-hidden>🛠️</span> Is die KI reg? <small>(gaan na die ontwikkelaar)</small>
+        <span>Beoordeel hierdie KI-antwoord</span>
+        <small>Jou beoordeling gaan na die administrateur/ontwikkelaar.</small>
       </div>
       <input type="hidden" name="kind" value="ki" />
       <input type="hidden" name="groupId" value={groupId} />
       <input type="hidden" name="sheet" value={sheet} />
       <input type="hidden" name="feedbackId" value={feedbackId ?? ""} />
       <input type="hidden" name="page" value={pathname} />
-      <Chips name="rating" options={KI_RATINGS} value={rating} onChange={setRating} />
-      {criteria.length ? (
-        <select name="criterionId" defaultValue="" aria-label="Oor watter kriterium?">
-          <option value="">Oor die terugvoer in die algemeen</option>
-          {criteria.map((c) => (
-            <option key={c.id} value={c.id}>
-              Kriterium: {c.title}
-            </option>
-          ))}
-        </select>
-      ) : null}
-      <div className="grid-2">
-        <div>
-          <label className="lbl" htmlFor="ki-issue-type">Wat is die hoofprobleem?</label>
-          <select id="ki-issue-type" name="issueType" defaultValue="">
-            <option value="">Kies indien van toepassing</option>
-            <option value="verkeerde_oordeel">Verkeerde oordeel</option>
-            <option value="te_streng">Te streng</option>
-            <option value="te_sag">Te sag</option>
-            <option value="onduidelik">Onduidelike terugvoer</option>
-            <option value="antwoord_weggegee">Gee die antwoord weg</option>
-            <option value="taal">Taal of bewoording</option>
-            <option value="veiligheid_privaatheid">Veiligheid of privaatheid</option>
-            <option value="ander">Ander</option>
-          </select>
-        </div>
-        <div>
-          <label className="lbl" htmlFor="ki-expected">Wat moes die oordeel wees?</label>
-          <select id="ki-expected" name="expectedVerdict" defaultValue="">
-            <option value="">Nie van toepassing nie</option>
-            <option value="behaal">Behaal</option>
-            <option value="gedeeltelik">Gedeeltelik</option>
-            <option value="nie_behaal">Nog nie behaal nie</option>
-          </select>
-        </div>
-      </div>
-      <div>
-        <label className="lbl" htmlFor="ki-scope">Hoe wyd behoort die verandering te geld?</label>
-        <select id="ki-scope" name="scope" defaultValue="hierdie_antwoord">
-          <option value="hierdie_antwoord">Net hierdie antwoord</option>
-          <option value="hierdie_werkblad">Hierdie werkblad vir alle groepe</option>
-          <option value="hierdie_werkboek">Hierdie hele werkboek</option>
-          <option value="alle_werkboeke">Alle werkboeke</option>
-        </select>
-      </div>
-      <textarea name="message" rows={3} placeholder="Wat moet die KI anders doen? Bv. “Hierdie probleemstelling is goed genoeg vir Gr 9 – moenie so streng wees nie.”" />
-      <div className="btn-row">
-        <button className="btn sm primary" disabled={pending}>
-          {pending ? <span className="spinner" /> : null} Stuur
+      <input type="hidden" name="rating" value={rating} />
+      <div className="ai-vote-row" role="group" aria-label="Is hierdie KI-antwoord reg?">
+        <button type="button" className={`ai-vote yes ${rating === "reg" ? "on" : ""}`} aria-pressed={rating === "reg"} onClick={() => setRating("reg")}>
+          <span className="ai-vote-icon" aria-hidden>👍</span>
+          <span><b>Reg</b><small>Die KI het goed beoordeel</small></span>
         </button>
-        {state?.ok ? <small style={{ color: "var(--ok)" }}>✓ Gestoor – volg dit onder “My terugvoer”.</small> : null}
-        {state?.error ? <small style={{ color: "var(--red)" }}>{state.error}</small> : null}
+        <button type="button" className={`ai-vote no ${rating === "verkeerd" ? "on" : ""}`} aria-pressed={rating === "verkeerd"} onClick={() => setRating("verkeerd")}>
+          <span className="ai-vote-icon" aria-hidden>👎</span>
+          <span><b>Nie reg nie</b><small>Gee ’n rede sodat ons dit kan verbeter</small></span>
+        </button>
       </div>
+
+      {rating === "verkeerd" ? (
+        <div className="ai-vote-details">
+          <div>
+            <label className="lbl" htmlFor={`ki-issue-type-${feedbackId}`}>Wat het verkeerd geloop?</label>
+            <select id={`ki-issue-type-${feedbackId}`} name="issueType" defaultValue="verkeerde_oordeel" required>
+              <option value="verkeerde_oordeel">Die KI se oordeel is verkeerd</option>
+              <option value="te_streng">Die KI is te streng</option>
+              <option value="te_sag">Die KI is te toegeeflik</option>
+              <option value="onduidelik">Die terugvoer is onduidelik</option>
+              <option value="antwoord_weggegee">Die KI gee die antwoord weg</option>
+              <option value="taal">Die taal of bewoording is verkeerd</option>
+              <option value="veiligheid_privaatheid">Veiligheids- of privaatheidsprobleem</option>
+              <option value="ander">Ander probleem</option>
+            </select>
+          </div>
+          {criteria.length ? (
+            <div>
+              <label className="lbl" htmlFor={`ki-criterion-${feedbackId}`}>Watter deel van die beoordeling?</label>
+              <select id={`ki-criterion-${feedbackId}`} name="criterionId" defaultValue="">
+                <option value="">Die KI-antwoord in die algemeen</option>
+                {criteria.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
+              </select>
+            </div>
+          ) : null}
+          <div>
+            <label className="lbl" htmlFor={`ki-message-${feedbackId}`}>Waarom is dit nie reg nie?</label>
+            <textarea id={`ki-message-${feedbackId}`} name="message" rows={3} required placeholder="Verduidelik kortliks wat die KI verkeerd beoordeel het en wat dit eerder moes doen." />
+          </div>
+          <details className="ai-vote-advanced">
+            <summary>Meer besonderhede (opsioneel)</summary>
+            <div className="grid-2" style={{ marginTop: 8 }}>
+              <div>
+                <label className="lbl" htmlFor={`ki-expected-${feedbackId}`}>Wat moes die oordeel wees?</label>
+                <select id={`ki-expected-${feedbackId}`} name="expectedVerdict" defaultValue="">
+                  <option value="">Nie van toepassing nie</option>
+                  <option value="behaal">Behaal</option>
+                  <option value="gedeeltelik">Gedeeltelik</option>
+                  <option value="nie_behaal">Nog nie behaal nie</option>
+                </select>
+              </div>
+              <div>
+                <label className="lbl" htmlFor={`ki-scope-${feedbackId}`}>Waar moet dit reggestel word?</label>
+                <select id={`ki-scope-${feedbackId}`} name="scope" defaultValue="hierdie_antwoord">
+                  <option value="hierdie_antwoord">Net hierdie antwoord</option>
+                  <option value="hierdie_werkblad">Hierdie werkblad vir alle groepe</option>
+                  <option value="hierdie_werkboek">Hierdie hele werkboek</option>
+                  <option value="alle_werkboeke">Alle werkboeke</option>
+                </select>
+              </div>
+            </div>
+          </details>
+        </div>
+      ) : rating === "reg" ? <p className="muted ai-vote-note">Dankie. Bevestig hieronder dat hierdie KI-antwoord reg was.</p> : <p className="muted ai-vote-note">Kies 👍 of 👎. By 👎 kan jy dadelik die rede verduidelik.</p>}
+
+      {rating ? (
+        <div className="btn-row">
+          <button className={`btn sm ${rating === "verkeerd" ? "primary" : "ok"}`} disabled={pending}>
+            {pending ? <span className="spinner" /> : null} {rating === "verkeerd" ? "Stuur KI-terugvoer" : "Stuur beoordeling"}
+          </button>
+          <button type="button" className="btn ghost sm" onClick={() => setRating("")}>Kanselleer</button>
+        </div>
+      ) : null}
+      {state?.ok ? <div className="alert ok" style={{ fontSize: ".86rem" }}>✓ Gestoor. Jy kan dit onder “My terugvoer” volg.</div> : null}
+      {state?.error ? <small style={{ color: "var(--red)" }}>{state.error}</small> : null}
     </form>
   );
 }

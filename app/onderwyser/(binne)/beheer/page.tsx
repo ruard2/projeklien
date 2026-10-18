@@ -10,9 +10,11 @@ export const metadata = { title: "Bestuur" };
 
 export default async function Beheer() {
   const a = await requireAdmin();
-  const [projects, teachers] = await Promise.all([
+  const [projects, teachers, newFeedbackCount, newNegativeAiCount] = await Promise.all([
     db.project.findMany({ where: { schoolId: a.schoolId }, orderBy: [{ year: "desc" }, { grade: "asc" }], include: { _count: { select: { groups: true } } } }),
-    db.teacher.findMany({ where: { schoolId: a.schoolId }, orderBy: { name: "asc" } })
+    db.teacher.findMany({ where: { schoolId: a.schoolId }, orderBy: { name: "asc" } }),
+    db.devFeedback.count({ where: { schoolId: a.schoolId, status: "nuut" } }),
+    db.devFeedback.count({ where: { schoolId: a.schoolId, status: "nuut", kind: "ki", NOT: { rating: "reg" } } })
   ]);
   const templates = listTemplates();
 
@@ -33,6 +35,10 @@ export default async function Beheer() {
           <div className="v" style={{ fontSize: "1.1rem" }}>{a.school.name}</div>
           <div className="l">Skool</div>
         </div>
+        <a className={`stat ${newFeedbackCount ? "attn" : ""}`} href="/onderwyser/terugvoer?status=nuut" style={{ color: "inherit", textDecoration: "none" }}>
+          <div className="v">{newFeedbackCount}</div>
+          <div className="l">nuwe terugvoer · {newNegativeAiCount} KI-probleme · maak oop →</div>
+        </a>
       </div>
 
       <div className="layout-2" style={{ gridTemplateColumns: "1fr 1fr" }}>

@@ -24,7 +24,7 @@ export default async function OnderwyserLayout({ children }: { children: React.R
         {isAdminRole(t.role) ? <Link href="/onderwyser/beheer">Bestuur</Link> : null}
         {reviewer ? (
           <>
-            <Link href="/onderwyser/terugvoer">Ontwikkelaar{newCount ? ` (${newCount})` : ""}</Link>
+            <Link href="/onderwyser/terugvoer">Terugvoer{newCount ? ` (${newCount})` : ""}</Link>
             <Link href="/onderwyser/evaluasies">KI-toetse</Link>
           </>
         ) : null}

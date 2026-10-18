@@ -21,6 +21,17 @@ const SCOPE_LABEL: Record<string, string> = {
   hierdie_werkboek: "hierdie werkboek",
   alle_werkboeke: "alle werkboeke"
 };
+const ISSUE_LABEL: Record<string, string> = {
+  verkeerde_oordeel: "Verkeerde oordeel",
+  te_streng: "Te streng",
+  te_sag: "Te toegeeflik",
+  onduidelik: "Onduidelike terugvoer",
+  antwoord_weggegee: "Gee die antwoord weg",
+  taal: "Taal of bewoording",
+  veiligheid_privaatheid: "Veiligheid of privaatheid",
+  ander: "Ander probleem"
+};
+const VERDICT_LABEL: Record<string, string> = { behaal: "Behaal", gedeeltelik: "Gedeeltelik", nie_behaal: "Nog nie behaal nie" };
 
 export default async function TerugvoerOorsig({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
   const reviewer = await requireFeedbackReviewer();
@@ -39,6 +50,7 @@ export default async function TerugvoerOorsig({ searchParams }: { searchParams: 
     where: { id: { in: [...new Set(reports.map((report) => report.groupId))] } },
     include: { project: true }
   });
+  const newNegativeAi = rows.filter((row) => row.status === "nuut" && row.soort === "KI-terugvoer" && row.oordeel !== "Reg");
 
   return (
     <div className="container">
@@ -52,8 +64,9 @@ export default async function TerugvoerOorsig({ searchParams }: { searchParams: 
         Onderwyserterugvoer en leerderverslae bly in ’n mens-beheerde ry. Merk wat ondersoek is, antwoord die onderwyser, en teken aan wanneer die bevinding in ’n permanente KI-toets opgeneem is.
       </p>
 
-      <div className="stats">
+      <div className="stats" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))" }}>
         <div className={`stat ${count("nuut") || reportCount("nuut") ? "attn" : ""}`}><div className="v">{count("nuut") + reportCount("nuut")}</div><div className="l">nuut</div></div>
+        <div className={`stat ${newNegativeAi.length ? "attn" : ""}`}><div className="v">{newNegativeAi.length}</div><div className="l">nuwe 👎 KI-beoordelings</div></div>
         <div className="stat"><div className="v">{count("gelees") + reportCount("gelees")}</div><div className="l">gelees</div></div>
         <div className="stat"><div className="v">{count("verwerk") + reportCount("verwerk")}</div><div className="l">verwerk</div></div>
         <div className="stat"><div className="v">{count("nuut") + count("gelees") + count("verwerk") + reportCount("nuut") + reportCount("gelees") + reportCount("verwerk")}</div><div className="l">totaal</div></div>
@@ -62,6 +75,21 @@ export default async function TerugvoerOorsig({ searchParams }: { searchParams: 
       <div className="tabs">
         {STATUS.map((item) => <Link key={item.key} href={item.key ? `/onderwyser/terugvoer?status=${item.key}` : "/onderwyser/terugvoer"} className={status === item.key ? "on" : ""}>{item.label}</Link>)}
       </div>
+
+      {newNegativeAi.length ? (
+        <section className="card" style={{ marginBottom: 24, borderLeft: "4px solid var(--red)" }}>
+          <h2 style={{ marginTop: 0 }}>👎 Nuwe KI-terugvoer wat aandag nodig het</h2>
+          <p className="muted">Klik op ’n inskrywing om die volledige KI-antwoord, onderwyser se rede en groepkonteks saam te lees.</p>
+          <div style={{ display: "grid", gap: 8 }}>
+            {newNegativeAi.map((row) => (
+              <a key={row.id} href={`#feedback-${row.id}`} className="teacher-note" style={{ display: "block", color: "inherit" }}>
+                <b>{row.onderwyser}</b> · {row.oordeel || "Nie reg nie"}{row.projek ? ` · ${row.projek}` : ""}{row.werkblad ? ` · ${row.werkblad}` : ""}
+                <span className="muted" style={{ display: "block", marginTop: 3 }}>{row.boodskap || ISSUE_LABEL[row.probleemtipe] || "Geen verduideliking gegee nie."}</span>
+              </a>
+            ))}
+          </div>
+        </section>
+      ) : null}
 
       <h2>Leerderverslae oor KI-antwoorde</h2>
       {reports.length === 0 ? <div className="card empty">Geen leerderverslae in hierdie aansig nie.</div> : reports.map((report) => {
@@ -90,21 +118,22 @@ export default async function TerugvoerOorsig({ searchParams }: { searchParams: 
         );
       })}
 
-      <h2 style={{ marginTop: 28 }}>Onderwyserterugvoer</h2>
+      <h2 style={{ marginTop: 28 }}>Onderwysers se terugvoer oor die KI en program</h2>
       {rows.length === 0 ? <div className="card empty">Geen onderwyserterugvoer in hierdie aansig nie.</div> : rows.map((row) => {
         const item = items.find((entry) => entry.id === row.id);
+        const negativeAi = row.soort === "KI-terugvoer" && row.oordeel !== "Reg";
         return (
-          <article className="card" key={row.id} style={row.status === "nuut" ? { borderLeft: "4px solid var(--red)" } : undefined}>
+          <article id={`feedback-${row.id}`} className="card" key={row.id} style={row.status === "nuut" ? { borderLeft: "4px solid var(--red)", scrollMarginTop: 16 } : { scrollMarginTop: 16 }}>
             <div className="row" style={{ gap: 8, marginBottom: 8 }}>
-              <span className="badge plain">{row.soort}</span>{row.oordeel ? <span className={`badge ${RATING_TONE[row.oordeel] ?? ""}`}>{row.oordeel}</span> : null}
+              <span className={`badge ${negativeAi ? "red" : "plain"}`}>{negativeAi ? "👎 KI nie reg nie" : row.soort}</span>{row.oordeel ? <span className={`badge ${RATING_TONE[row.oordeel] ?? ""}`}>{row.oordeel}</span> : null}
               <b>{row.onderwyser}</b><small className="muted">{row.datum}</small><span className="grow" />
               <span className={`badge ${row.status === "nuut" ? "red" : row.status === "verwerk" ? "ok" : "plain"}`}>{row.status}</span>
             </div>
             {row.boodskap ? <p style={{ whiteSpace: "pre-wrap", fontSize: "1.02rem" }}>{row.boodskap}</p> : null}
             {item?.issueType || item?.expectedVerdict || item?.scope ? (
               <div className="row" style={{ gap: 7 }}>
-                {item.issueType ? <span className="badge plain">{item.issueType.replaceAll("_", " ")}</span> : null}
-                {item.expectedVerdict ? <span className="badge plain">Verwag: {item.expectedVerdict.replaceAll("_", " ")}</span> : null}
+                {item.issueType ? <span className="badge plain">Rede: {ISSUE_LABEL[item.issueType] ?? item.issueType.replaceAll("_", " ")}</span> : null}
+                {item.expectedVerdict ? <span className="badge plain">Verwag: {VERDICT_LABEL[item.expectedVerdict] ?? item.expectedVerdict.replaceAll("_", " ")}</span> : null}
                 {item.scope ? <span className="badge plain">Omvang: {SCOPE_LABEL[item.scope] ?? item.scope}</span> : null}
               </div>
             ) : null}
