@@ -27,7 +27,7 @@ Reëls wat bediener-kant afgedwing word:
 ### Privaatheid (POPIA)
 - Groepe meld met kodes aan. Slegs voorname van lede word gestoor, en dit word **nooit** na die KI gestuur nie (vervang met “Lid 1”, …).
 - E-posadresse, telefoon- en ID-nommers word uit teks verwyder voordat dit na die KI gaan.
-- **Uitsondering – PDF-vergelyking:** om ’n papierwerkboek uit te lees, gaan die hele skandering (mét name) na OpenAI. Die onderwyser bevestig dit by die oplaai; die PDF word geskrap sodra die uitlees goedgekeur is, en die KI-terugvoer daarna is weer geanonimiseer. Opsioneel: `OPENAI_PDF_MODEL` (verstek: `OPENAI_MODEL`).
+- **Uitsondering – PDF-vergelyking:** om ’n papierwerkboek uit te lees, gaan die hele skandering (mét name) na OpenAI. Die onderwyser bevestig dit by die oplaai; die PDF word geskrap sodra die uitlees goedgekeur is, en die KI-terugvoer daarna is weer geanonimiseer. Uitlees gebruik by verstek die groot model `gpt-5.4` met `high` redenering (oorskryf met `OPENAI_PDF_MODEL` en `OPENAI_PDF_REASONING`); die onderwyser kan ook “Vinniger” kies (gewone `OPENAI_MODEL`). Bestaan die groot model nie op die rekening nie, val dit outomaties terug.
 - Foto’s word nooit na die KI gestuur nie; dit word in die blaaier verklein (wat ook GPS/EXIF verwyder) en vereis ’n toestemmingsbevestiging.
 
 ## Struktuur

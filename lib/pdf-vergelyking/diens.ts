@@ -47,7 +47,7 @@ export async function runExtraction(id: string) {
   try {
     if (!aiConfigured()) throw new Error("OPENAI_API_KEY is nie gestel nie.");
     const template = getTemplate(c.templateKey);
-    const { raw, model } = await extractPdf(template, Buffer.from(c.pdf), c.fileName);
+    const { raw, model } = await extractPdf(template, Buffer.from(c.pdf), c.fileName, c.model);
     const extracted = normaliseExtraction(template, raw);
     if (!Object.keys(extracted.sheets).length) throw new Error("Geen ingevulde werkblaaie in die PDF herken nie. Is dit die regte projek en ’n leesbare skandering?");
     await db.pdfComparison.update({

@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { approveExtraction, deleteComparison, retryComparison, voteCriterion } from "@/app/onderwyser/pdf-aksies";
 import Herlaai from "@/components/Herlaai";
+import PdfWerkblad from "@/components/PdfWerkblad";
 import { asExtracted, asResults, loadOwnComparison, STALE_MS } from "@/lib/pdf-vergelyking/diens";
-import { extractableSheets, jufText, membersFrom, photoCountsFor } from "@/lib/pdf-vergelyking/skema";
+import { extractableSheets, jufText, membersFrom, studentOnlySheet } from "@/lib/pdf-vergelyking/skema";
 import { OORDEEL_LABEL, OOREENKOMS_LABEL, STATUS_LABEL } from "@/lib/pdf-vergelyking/status";
 import { requireTeacher } from "@/lib/sessie";
 import { getTemplate } from "@/lib/werkboeke/sjablone";
@@ -42,6 +43,7 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
       </div>
       <p className="muted" style={{ marginTop: 0 }}>
         {c.fileName} · {c.createdAt.toLocaleString("af-ZA", { dateStyle: "medium", timeStyle: "short" })}
+        {c.model && c.status !== "uitlees" ? <> · uitgelees met {c.model}</> : null}
         {extracted ? <> · {[extracted.groepnaam, extracted.klas].filter(Boolean).join(" · ")} · {extracted.lede.filter(Boolean).join(", ")}</> : null}
       </p>
 
@@ -67,7 +69,7 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
       {c.status === "nagaan" && extracted ? (
         <>
           <div className="alert warn" style={{ marginBottom: 16 }}>
-            Gaan na of die KI die leerders se antwoorde (links) en jou kommentaar (regs) reg gelees en reg geskei het. As dit klop, klik <b>Akkoord</b>: dan gaan die leerders se antwoorde, geanonimiseer, na die gewone KI-terugvoer.
+            Maak elke werkblad oop en gaan na of die leerders se antwoorde en jou kommentaar reg gelees en reg geskei is. Sien jy ’n leesfout, klik <b>✏️ Wysig</b> en stel dit reg. As alles klop, klik onderaan <b>Akkoord</b>: dan gaan die leerders se antwoorde, geanonimiseer, na die gewone KI-terugvoer.
           </div>
           {sheets.map((s) => {
             const e = extracted.sheets[s.key];
@@ -80,19 +82,8 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
                   {e.onseker.length ? <span className="badge warn">{e.onseker.length} onseker</span> : null}
                 </summary>
                 <div className="body">
-                <div className="pv-cols">
-                  <div className="pv-box lln">
-                    <h4>Leerders</h4>
-                    <pre className="pv-pre">{sheetToText(s, e.data, { members, anonymise: false, photoCounts: photoCountsFor(template, extracted, s.key) })}</pre>
-                  </div>
-                  <div className="pv-box juf">
-                    <h4>Juf</h4>
-                    <Lys items={e.juf.kommentaar} empty="Geen kommentaar op die finale weergawe nie." />
-                    {e.juf.kommentaar_vorige.length ? <><h4 style={{ marginTop: 12 }}>Op ’n vroeëre weergawe</h4><Lys items={e.juf.kommentaar_vorige} /></> : null}
-                    <p style={{ margin: "10px 0 0", fontSize: ".9rem" }}>{e.juf.afgeteken ? `✔ Kontrolepunt afgeteken${e.juf.afteken_datum ? ` (${e.juf.afteken_datum})` : ""}` : "Nie afgeteken nie."}</p>
-                  </div>
-                </div>
-                {e.onseker.length ? <div className="alert info" style={{ marginTop: 10, fontSize: ".88rem" }}><b>Onseker:</b> {e.onseker.join(" · ")}</div> : null}
+                  <PdfWerkblad comparisonId={c.id} sheet={studentOnlySheet(s)} data={e.data} juf={e.juf} members={members} foto={e.foto} editable />
+                  {e.onseker.length ? <div className="alert info" style={{ marginTop: 10, fontSize: ".88rem" }}><b>Onseker:</b> {e.onseker.join(" · ")}</div> : null}
                 </div>
               </details>
             );

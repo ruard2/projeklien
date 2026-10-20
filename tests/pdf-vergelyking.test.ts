@@ -86,3 +86,12 @@ test("KI-invoer uit ’n PDF bevat geen leerdername nie", () => {
   const juf = jufText({ ...e.sheets.ws2, juf: { ...e.sheets.ws2.juf, kommentaar: ["Mooi, Anli Kruger!"] } }, members);
   assert.equal(juf, "- Mooi, Lid 2!");
 });
+
+test("onderwyser se regstellings word volgens die sjabloon skoongemaak", async () => {
+  const { cleanSheetData, studentOnlySheet } = await import("../lib/pdf-vergelyking/skema");
+  const ws2 = volGr9Haweloosheid.sheets.find((s) => s.key === "ws2")!;
+  const data = cleanSheetData(ws2, { waarnemings: [{ gesien: " A ", waar: "B", pla: "C", ekstra: "x" }, { gesien: "", waar: "", pla: "" }], fotos: true, vreemd: 1 });
+  assert.deepEqual(data, { waarnemings: [{ gesien: "A", waar: "B", pla: "C" }] });
+  const only = studentOnlySheet(ws2);
+  assert.ok(only.sections.every((sec) => sec.fields.every((f) => f.type !== "info" && f.type !== "photos" && f.type !== "teacherNote")));
+});

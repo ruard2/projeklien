@@ -3,6 +3,7 @@ import { fout, handle } from "@/lib/api";
 import { db } from "@/lib/db";
 import { aiConfigured } from "@/lib/ki";
 import { runExtraction } from "@/lib/pdf-vergelyking/diens";
+import { pdfModel } from "@/lib/pdf-vergelyking/openai";
 import { currentTeacher } from "@/lib/sessie";
 import { allow } from "@/lib/tempo";
 
@@ -33,7 +34,7 @@ export async function POST(req: Request) {
     const name = (file instanceof File ? file.name : "werkboek.pdf").slice(0, 120);
 
     const c = await db.pdfComparison.create({
-      data: { schoolId: t.schoolId, teacherId: t.id, teacherName: t.name, projectId: project.id, groupId: group?.id ?? null, templateKey: project.templateKey, fileName: name, pdf: buf },
+      data: { schoolId: t.schoolId, teacherId: t.id, teacherName: t.name, projectId: project.id, groupId: group?.id ?? null, model: pdfModel(form.get("kwaliteit") === "vinnig" ? "vinnig" : "beste"), templateKey: project.templateKey, fileName: name, pdf: buf },
       select: { id: true }
     });
     after(() => runExtraction(c.id));

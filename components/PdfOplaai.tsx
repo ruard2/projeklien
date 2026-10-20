@@ -9,6 +9,7 @@ export default function PdfOplaai({ projects, group }: { projects: ProjectOption
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [quality, setQuality] = useState<"beste" | "vinnig">("beste");
   const [projectId, setProjectId] = useState(group?.projectId ?? (projects.length === 1 ? projects[0].id : ""));
 
   async function submit(e: React.FormEvent<HTMLFormElement>) {
@@ -55,6 +56,22 @@ export default function PdfOplaai({ projects, group }: { projects: ProjectOption
       <div>
         <label className="lbl" htmlFor="pdf-leer">2. Gescande werkboek (PDF, hoogstens 30 MB)</label>
         <input id="pdf-leer" type="file" name="file" accept="application/pdf,.pdf" required />
+      </div>
+
+      <div>
+        <div className="lbl">3. Uitlees-kwaliteit</div>
+        <div className="pv-choices">
+          <label className={`pv-choice ${quality === "beste" ? "on" : ""}`}>
+            <input type="radio" name="kwaliteit" value="beste" checked={quality === "beste"} onChange={() => setQuality("beste")} style={{ display: "none" }} />
+            <b>Beste (aanbeveel)</b>
+            <small>Groot model, lees handskrif die beste. ’n Paar minute.</small>
+          </label>
+          <label className={`pv-choice ${quality === "vinnig" ? "on" : ""}`}>
+            <input type="radio" name="kwaliteit" value="vinnig" checked={quality === "vinnig"} onChange={() => setQuality("vinnig")} style={{ display: "none" }} />
+            <b>Vinniger</b>
+            <small>Dieselfde model as die gewone terugvoer; meer leesfoute.</small>
+          </label>
+        </div>
       </div>
 
       <div className="alert warn" style={{ fontSize: ".9rem" }}>

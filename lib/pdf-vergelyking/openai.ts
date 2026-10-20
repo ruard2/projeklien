@@ -13,8 +13,10 @@ function openai() {
   return client;
 }
 
-export function pdfModel(): string {
-  return process.env.OPENAI_PDF_MODEL || aiModel();
+/** Model vir die uitlees van handskrif: by verstek die groot model, want “mini” lees handskrif swakker. */
+export function pdfModel(quality: "beste" | "vinnig" = "beste"): string {
+  if (quality === "vinnig") return aiModel();
+  return process.env.OPENAI_PDF_MODEL || "gpt-5.4";
 }
 
 function reasoning(model: string) {
@@ -27,6 +29,7 @@ WIE HET WAT GESKRYF
 - Gedrukte teks is die werkboek self: skryf dit nooit oor nie.
 - LEERDERS skryf met blou of swart pen, potlood, en soms donkerrooi/maroen ink. Hulle antwoorde staan in die antwoordblokke en tabelle.
 - Die ONDERWYSER merk met helderrooi (soms groen) pen: regmerkies, kruisies, woorde soos “Puik”, onderstrepings, pyle, randnotas, korreksies en opdragte (“Net een probleemstelling”, “Verander waar nodig!”), plus naam, handtekening en datum by ’n Kontrolepunt.
+- Kyk ook in die KANTLYNE, bo en onder die blokke en na teks wat skuins of vertikaal langs die blok geskryf is: rooi opmerkings daar (bv. “Stap 2 en 3 moet aansluit by stap 1”) is onderwyserkommentaar en moet by juf.kommentaar of juf.kommentaar_vorige.
 - Twyfel jy oor die kleur, kyk na die handskrif en die funksie: ’n antwoord op die vraag is van die leerders; ’n opmerking OOR die antwoord is van die onderwyser. Noem werklike twyfel by "onseker".
 - ’n Blok soos “Vul die onderwyser se kommentaar hier in” bevat die onderwyser se kommentaar wat leerders oorgeskryf het: sit dit by juf.kommentaar met die voorvoegsel “(oorgeskryf) ”.
 
@@ -34,7 +37,9 @@ OORSKRYF
 - Skryf woordeliks oor, met die leerders se eie spelling. Moet niks verbeter, aanvul of saamvat nie.
 - Laat deurgehaalde teks weg. Werk invoegings (met ^ of pyltjies) in op die plek waar hulle hoort.
 - Onleesbare woorde: skryf [?] en noem dit by "onseker".
-- Tabelle: koppel elke sel aan die regte ry en kolom. Leë rye laat jy weg. Keusematriks: die getalle soos geskryf (nie die totale nie).
+- Lees potlood en dowwe skrif woord vir woord en stadig. Raai nooit ’n woord wat nie daar staan nie (moenie byvoorbeeld name of woorde byvoeg wat sinvol klink nie); skryf eerder [?].
+- Tabelle: koppel elke sel aan die regte ry en kolom. ELKE RY OP PAPIER IS ’N APARTE RY in die uitslag: voeg nooit twee rye saam nie, ook nie as die teks oor ’n lyn loop of die rye min spasie tussen hulle het nie. Tel die rye op die bladsy en kontroleer dat jou uitslag ewe veel rye het. Leë rye laat jy weg.
+- Pyltjies in ’n sel (bv. “Moeggesukkel → help; Straat → help nie”) skryf jy oor met “->”. Keusematriks: die getalle soos geskryf (nie die totale nie).
 - Groeplid-kolomme: die naam soos geskryf.
 - Koste: net die getal (Verniet = 0).
 - Keuselys-kolomme (bv. “Hoe erg is dit?”): kies die naaste toegelate opsie; as die leerders iets anders geskryf het, noem hulle eie woorde by "onseker".
@@ -50,11 +55,27 @@ PRIVAATHEID
 DIE WERKBOEK SE BLADSYE EN VELDE
 `;
 
-export async function extractPdf(template: Template, pdf: Buffer, fileName: string): Promise<{ raw: unknown; model: string }> {
-  const model = pdfModel();
+function isModelError(e: unknown): boolean {
+  const err = e as { status?: number; code?: string; message?: string };
+  return err?.status === 404 || err?.code === "model_not_found" || /model/i.test(err?.message ?? "") && err?.status === 400;
+}
+
+export async function extractPdf(template: Template, pdf: Buffer, fileName: string, requested?: string | null): Promise<{ raw: unknown; model: string }> {
+  const model = requested || pdfModel();
+  try {
+    return await extractWith(model, template, pdf, fileName);
+  } catch (e) {
+    // Bestaan die groot model nie op hierdie rekening nie, val terug op die gewone model.
+    if (model !== aiModel() && isModelError(e)) return extractWith(aiModel(), template, pdf, fileName);
+    throw e;
+  }
+}
+
+async function extractWith(model: string, template: Template, pdf: Buffer, fileName: string): Promise<{ raw: unknown; model: string }> {
+  const effort = model === aiModel() ? reasoning(model) : /^(gpt-5|o\d)/.test(model) ? { reasoning_effort: (process.env.OPENAI_PDF_REASONING || "high") as "low" | "medium" | "high" } : {};
   const completion = await openai().chat.completions.create({
     model,
-    ...reasoning(model),
+    ...effort,
     messages: [
       { role: "system", content: EXTRACT_PROMPT + layoutText(template) },
       {

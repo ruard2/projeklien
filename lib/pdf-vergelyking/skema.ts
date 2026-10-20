@@ -189,6 +189,28 @@ function fieldValue(f: Field, v: unknown): unknown {
 
 const strings = (v: unknown) => (Array.isArray(v) ? v.map(clean).filter(Boolean) : []);
 
+/** Maak werkbladdata skoon volgens die sjabloon (vir die KI-uitlees én vir die onderwyser se regstellings). */
+export function cleanSheetData(s: Sheet, answers: unknown): SheetData {
+  const src = answers && typeof answers === "object" && !Array.isArray(answers) ? (answers as Record<string, unknown>) : {};
+  const data: SheetData = {};
+  for (const f of studentFields(s)) {
+    if (f.type === "photos") continue;
+    const v = fieldValue(f, src[f.key]);
+    if (v !== undefined) data[f.key] = v as SheetData[string];
+  }
+  return data;
+}
+
+/** Werkblad met net die leerdervelde (sonder hulpteks, foto- en onderwyservelde), om te wys of te wysig. */
+export function studentOnlySheet(s: Sheet): Sheet {
+  return {
+    ...s,
+    sections: s.sections
+      .map((sec) => ({ ...sec, intro: undefined, fields: sec.fields.filter((f) => f.type !== "info" && f.type !== "teacherNote" && f.type !== "photos") }))
+      .filter((sec) => sec.fields.length)
+  };
+}
+
 /** Skakel OpenAI se uitslag om na data wat die app se werkblaaie verstaan. */
 export function normaliseExtraction(t: Template, raw: unknown): Extracted {
   const r = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
@@ -198,16 +220,8 @@ export function normaliseExtraction(t: Template, raw: unknown): Extracted {
     const src = sheetsRaw[s.key];
     if (!src || src.gevind !== true) continue;
     const answers = src.antwoorde && typeof src.antwoorde === "object" ? (src.antwoorde as Record<string, unknown>) : {};
-    const data: SheetData = {};
-    let foto = false;
-    for (const f of studentFields(s)) {
-      if (f.type === "photos") {
-        foto ||= answers[f.key] === true;
-        continue;
-      }
-      const v = fieldValue(f, answers[f.key]);
-      if (v !== undefined) data[f.key] = v as SheetData[string];
-    }
+    const data = cleanSheetData(s, answers);
+    const foto = studentFields(s).some((f) => f.type === "photos" && answers[f.key] === true);
     const juf = (src.juf ?? {}) as Record<string, unknown>;
     sheets[s.key] = {
       data,
