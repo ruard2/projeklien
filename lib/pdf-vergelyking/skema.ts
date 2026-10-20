@@ -153,7 +153,7 @@ function fieldValue(f: Field, v: unknown): unknown {
     case "list": {
       // Lyste kry self nommers in die app; verwyder dus die leerders se eie “1.”, “-” of “->” vooraan.
       const items = (Array.isArray(v) ? v : [])
-        .map((x) => clean(x).replace(/^(?:\(?\d{1,2}[.)]|[-–•*]|->|→)\s*/u, "").trim())
+        .map((x) => clean(x).replace(/^(?:\(?\d{1,2}[.)]|->|→|[-–•*])\s*/u, "").trim())
         .filter(Boolean)
         .slice(0, f.count);
       return items.length ? items : undefined;
