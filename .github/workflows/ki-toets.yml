@@ -1,0 +1,33 @@
+name: KI-toets (papierwerkboek)
+on:
+  push:
+    branches: [ki-toets]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  loop:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx prisma generate
+      - name: Loop KI-terugvoer
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: ${{ vars.OPENAI_MODEL || 'gpt-5.4-mini' }}
+          OPENAI_REASONING_EFFORT: medium
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then echo "::error::Voeg eers die geheim OPENAI_API_KEY by"; exit 1; fi
+          npx tsx scripts/ki-toets/loop.ts scripts/ki-toets/uitslag.json
+      - name: Stoor uitslag
+        run: |
+          git config user.name "ki-toets"
+          git config user.email "ki-toets@users.noreply.github.com"
+          git add scripts/ki-toets/uitslag.json
+          git commit -m "KI-toets uitslag [skip ci]" || exit 0
+          git push
