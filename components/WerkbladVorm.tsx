@@ -1,6 +1,7 @@
 "use client";
 
-import { useLayoutEffect, useRef } from "react";
+import { useId, useLayoutEffect, useRef } from "react";
+import { memberDisplay } from "@/lib/werkboeke/teks";
 import type {
   ChoiceField,
   Column,
@@ -188,8 +189,33 @@ export function AutoTextarea({
   );
 }
 
-function memberOptions(members: string[]) {
-  return members.map((name, i) => ({ value: String(i + 1), label: name.trim() || `Lid ${i + 1}` })).filter((o, i) => members[i]?.trim() || i < 2);
+/** Vrye naamveld; name van die voorblad verskyn as voorstelle. */
+function MemberInput({ value, onChange, ctx, aria }: { value: unknown; onChange: (v: string) => void; ctx: Ctx; aria: string }) {
+  const listId = useId();
+  const shown = memberDisplay(value, ctx.members);
+  if (ctx.readOnly) return <ReadText value={shown} />;
+  const names = ctx.members.map((m) => m.trim()).filter(Boolean);
+  return (
+    <>
+      <input
+        aria-label={aria}
+        type="text"
+        value={shown}
+        placeholder="Naam"
+        maxLength={60}
+        autoComplete="off"
+        list={names.length ? listId : undefined}
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {names.length > 0 && (
+        <datalist id={listId}>
+          {names.map((n) => (
+            <option key={n} value={n} />
+          ))}
+        </datalist>
+      )}
+    </>
+  );
 }
 
 function CellInput({ col, row, onCell, ctx, rowLabel }: { col: Column; row: RowValue; onCell: (k: string, v: unknown) => void; ctx: Ctx; rowLabel?: string }) {
@@ -199,18 +225,7 @@ function CellInput({ col, row, onCell, ctx, rowLabel }: { col: Column; row: RowV
     return <input type="checkbox" className="check" aria-label={aria} checked={Boolean(v)} disabled={ctx.readOnly} onChange={(e) => onCell(col.key, e.target.checked)} />;
   }
   if (col.kind === "member") {
-    const opts = memberOptions(ctx.members);
-    if (ctx.readOnly) return <ReadText value={opts.find((o) => o.value === str(v))?.label ?? ""} />;
-    return (
-      <select aria-label={aria} value={str(v)} onChange={(e) => onCell(col.key, e.target.value)}>
-        <option value="">— kies —</option>
-        {opts.map((o) => (
-          <option key={o.value} value={o.value}>
-            {o.label}
-          </option>
-        ))}
-      </select>
-    );
+    return <MemberInput value={v} onChange={(x) => onCell(col.key, x)} ctx={ctx} aria={aria} />;
   }
   if (col.kind === "select") {
     if (ctx.readOnly) return <ReadText value={v} />;

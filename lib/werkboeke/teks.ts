@@ -60,11 +60,35 @@ export function redact(text: string, members: string[]): string {
   return out;
 }
 
+/** Ou data stoor ’n lid as "1".."4"; nuwe data stoor die getikte naam. */
+function legacyIndex(v: unknown): number | null {
+  const t = typeof v === "number" ? String(v) : typeof v === "string" ? v.trim() : "";
+  return /^[1-4]$/.test(t) ? Number(t) : null;
+}
+
+/** Wat ’n groeplid-sel vir mense wys: die naam (of "Lid n" as die voorblad leeg is). */
+export function memberDisplay(v: unknown, members: string[]): string {
+  const i = legacyIndex(v);
+  if (i) return members[i - 1]?.trim() || `Lid ${i}`;
+  return typeof v === "string" ? v.trim() : "";
+}
+
+// Name wat nie op die voorblad staan nie, kry per teksomskakeling ’n vaste skuilnaam.
+const unknownNames = new WeakMap<TextOptions, Map<string, string>>();
+
 function memberLabel(v: unknown, o: TextOptions): string {
-  const i = Number(v);
-  if (!i) return "";
-  if (o.anonymise) return `Lid ${i}`;
-  return o.members[i - 1]?.trim() || `Lid ${i}`;
+  const i = legacyIndex(v);
+  if (i) return o.anonymise ? `Lid ${i}` : o.members[i - 1]?.trim() || `Lid ${i}`;
+  const name = typeof v === "string" ? v.trim() : "";
+  if (!name) return "";
+  if (!o.anonymise) return name;
+  const key = name.toLocaleLowerCase("af");
+  const idx = o.members.findIndex((m) => m.trim().toLocaleLowerCase("af") === key);
+  if (idx >= 0) return `Lid ${idx + 1}`;
+  let map = unknownNames.get(o);
+  if (!map) unknownNames.set(o, (map = new Map()));
+  if (!map.has(key)) map.set(key, `Groeplid ${String.fromCharCode(65 + map.size)}`);
+  return map.get(key)!;
 }
 
 function cell(c: Column, row: RowValue | undefined, o: TextOptions): string {
