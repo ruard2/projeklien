@@ -34,7 +34,7 @@ const raw = {
       gevind: true,
       antwoorde: {
         rolle: { projekleier: { naam: "Duné" }, navorser: { naam: "Wilmie" }, materiaal: { naam: "Anli" }, kommunikeerder: { naam: "Imarie" } },
-        groepreels: ["Moenie die werk alleen doen nie.", " Sê betyds. ", "Help mekaar.", ""]
+        groepreels: ["1. Moenie die werk alleen doen nie.", " -> Sê betyds. ", "3) Help mekaar.", ""]
       },
       juf: { kommentaar: [], kommentaar_vorige: [], afgeteken: false, afteken_datum: "" },
       onseker: []

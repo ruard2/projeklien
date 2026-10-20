@@ -151,7 +151,11 @@ function fieldValue(f: Field, v: unknown): unknown {
     case "choice":
       return clean(v) || undefined;
     case "list": {
-      const items = (Array.isArray(v) ? v : []).map(clean).filter(Boolean).slice(0, f.count);
+      // Lyste kry self nommers in die app; verwyder dus die leerders se eie “1.”, “-” of “->” vooraan.
+      const items = (Array.isArray(v) ? v : [])
+        .map((x) => clean(x).replace(/^(?:\(?\d{1,2}[.)]|[-–•*]|->|→)\s*/u, "").trim())
+        .filter(Boolean)
+        .slice(0, f.count);
       return items.length ? items : undefined;
     }
     case "table": {

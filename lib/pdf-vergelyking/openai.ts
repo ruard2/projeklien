@@ -38,7 +38,7 @@ OORSKRYF
 - Laat deurgehaalde teks weg. Werk invoegings (met ^ of pyltjies) in op die plek waar hulle hoort.
 - Onleesbare woorde: skryf [?] en noem dit by "onseker".
 - Lees potlood en dowwe skrif woord vir woord en stadig. Raai nooit ’n woord wat nie daar staan nie (moenie byvoorbeeld name of woorde byvoeg wat sinvol klink nie); skryf eerder [?].
-- Tabelle: koppel elke sel aan die regte ry en kolom. ELKE RY OP PAPIER IS ’N APARTE RY in die uitslag: voeg nooit twee rye saam nie, ook nie as die teks oor ’n lyn loop of die rye min spasie tussen hulle het nie. Tel die rye op die bladsy en kontroleer dat jou uitslag ewe veel rye het. Leë rye laat jy weg.
+- Tabelle: koppel elke sel aan die regte ry en kolom. ELKE RY OP PAPIER IS ’N APARTE RY in die uitslag: voeg nooit twee rye saam nie, ook nie as die teks oor ’n lyn loop of die rye min spasie tussen hulle het nie. ’n Ry word begrens deur die gedrukte horisontale tabellyne: alles tussen twee tabellyne is een ry, en teks onder die volgende lyn is ’n nuwe ry. Tel die rye op die bladsy en kontroleer dat jou uitslag ewe veel rye het. Leë rye laat jy weg.
 - Pyltjies in ’n sel (bv. “Moeggesukkel → help; Straat → help nie”) skryf jy oor met “->”. Keusematriks: die getalle soos geskryf (nie die totale nie).
 - Groeplid-kolomme: die naam soos geskryf.
 - Koste: net die getal (Verniet = 0).
