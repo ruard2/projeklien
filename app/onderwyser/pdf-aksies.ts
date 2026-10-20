@@ -26,7 +26,7 @@ export async function retryComparison(form: FormData) {
   const t = await requireTeacher();
   const c = await loadOwnComparison(String(form.get("id")), t);
   const busy = (c.status === "uitlees" || c.status === "ki") && Date.now() - c.updatedAt.getTime() < STALE_MS;
-  if (busy) redirect(path(c.id));
+  if (busy || (c.status === "nagaan" && !c.pdf)) redirect(path(c.id));
   if (c.pdf && (c.status === "nagaan" || c.status === "fout" || c.status === "uitlees")) {
     await db.pdfComparison.update({ where: { id: c.id }, data: { status: "uitlees", error: null } });
     after(() => runExtraction(c.id));

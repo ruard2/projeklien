@@ -43,7 +43,7 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
       </div>
       <p className="muted" style={{ marginTop: 0 }}>
         {c.fileName} · {c.createdAt.toLocaleString("af-ZA", { dateStyle: "medium", timeStyle: "short" })}
-        {c.model && c.status !== "uitlees" ? <> · uitgelees met {c.model}</> : null}
+        {c.model && c.status !== "uitlees" ? <> · {c.model.startsWith("handmatig") ? c.model : `uitgelees met ${c.model}`}</> : null}
         {extracted ? <> · {[extracted.groepnaam, extracted.klas].filter(Boolean).join(" · ")} · {extracted.lede.filter(Boolean).join(", ")}</> : null}
       </p>
 
@@ -91,7 +91,7 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
           <div className="card" style={{ marginTop: 16 }}>
             <div className="btn-row">
               <form action={approveExtraction}><input type="hidden" name="id" value={c.id} /><button className="btn ok lg">Akkoord – gee aan die KI</button></form>
-              <form action={retryComparison}><input type="hidden" name="id" value={c.id} /><button className="btn">Lees weer uit</button></form>
+              {c.pdf ? <form action={retryComparison}><input type="hidden" name="id" value={c.id} /><button className="btn">Lees weer uit</button></form> : null}
             </div>
           </div>
         </>

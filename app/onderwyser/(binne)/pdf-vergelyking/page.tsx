@@ -1,4 +1,5 @@
 import Link from "next/link";
+import PdfInvoer from "@/components/PdfInvoer";
 import PdfOplaai from "@/components/PdfOplaai";
 import { db } from "@/lib/db";
 import { aiConfigured } from "@/lib/ki";
@@ -46,7 +47,14 @@ export default async function PdfVergelyking({ searchParams }: { searchParams: P
         )}
       </div>
 
-      <div className="card">
+      {!group ? (
+        <details className="pv-acc">
+          <summary><span className="t">📥 Voer ’n lêer met uitgelese werkboeke in (JSON)</span></summary>
+          <div className="body"><PdfInvoer /></div>
+        </details>
+      ) : null}
+
+      <div className="card" style={{ marginTop: 18 }}>
         <h2>Vorige oplaaie</h2>
         {items.length === 0 ? (
           <p className="muted">Nog niks opgelaai nie.</p>

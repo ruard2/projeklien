@@ -95,3 +95,12 @@ test("onderwyser se regstellings word volgens die sjabloon skoongemaak", async (
   const only = studentOnlySheet(ws2);
   assert.ok(only.sections.every((sec) => sec.fields.every((f) => f.type !== "info" && f.type !== "photos" && f.type !== "teacherNote")));
 });
+
+test("invoer-lêer word gevalideer en skoongemaak", async () => {
+  const { parseImport } = await import("../lib/pdf-vergelyking/invoer");
+  const items = parseImport({ werkboeke: [{ werkboek: "vol-gr9-haweloosheid", naam: "Toets", lede: ["Anke Botha"], werkblaaie: { ws1: { data: { groepreels: ["1. Een", "-> Twee"], vreemd: 1 }, juf: { kommentaar: ["Puik"], afgeteken: true } }, wsX: {} } }] });
+  assert.equal(items.length, 1);
+  assert.deepEqual(items[0].extracted.sheets.ws1.data, { groepreels: ["Een", "Twee"] });
+  assert.equal(items[0].extracted.sheets.ws1.juf.afgeteken, true);
+  assert.throws(() => parseImport({ werkboeke: [{ werkboek: "bestaan-nie" }] }), /onbekende werkboek/);
+});
