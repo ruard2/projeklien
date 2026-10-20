@@ -22,15 +22,18 @@ export async function POST(req: Request) {
     if (!(file instanceof Blob) || file.size === 0) return fout("Geen PDF ontvang nie.");
     if (file.size > MAX_BYTES) return fout("Die PDF is te groot (hoogstens 30 MB).");
 
-    const project = await db.project.findFirst({ where: { id: projectId, schoolId: t.schoolId } });
-    if (!project) return fout("Kies asseblief ’n projek.");
+    const groupId = String(form.get("groupId") ?? "") || null;
+    const group = groupId ? await db.group.findFirst({ where: { id: groupId, project: { schoolId: t.schoolId } }, select: { id: true, projectId: true } }) : null;
+    if (groupId && !group) return fout("Groep nie gevind nie.");
+    const project = await db.project.findFirst({ where: { id: group?.projectId ?? projectId, schoolId: t.schoolId } });
+    if (!project) return fout("Kies asseblief graad 8 of graad 9.");
 
     const buf = Buffer.from(await file.arrayBuffer());
     if (buf.subarray(0, 5).toString() !== "%PDF-") return fout("Slegs PDF-lêers.");
     const name = (file instanceof File ? file.name : "werkboek.pdf").slice(0, 120);
 
     const c = await db.pdfComparison.create({
-      data: { schoolId: t.schoolId, teacherId: t.id, teacherName: t.name, projectId: project.id, templateKey: project.templateKey, fileName: name, pdf: buf },
+      data: { schoolId: t.schoolId, teacherId: t.id, teacherName: t.name, projectId: project.id, groupId: group?.id ?? null, templateKey: project.templateKey, fileName: name, pdf: buf },
       select: { id: true }
     });
     after(() => runExtraction(c.id));

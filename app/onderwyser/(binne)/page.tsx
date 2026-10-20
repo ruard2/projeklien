@@ -79,11 +79,20 @@ export default async function OnderwyserTuis({ searchParams }: { searchParams: P
           <button className="btn sm">Soek</button>
         </form>
       </div>
+
+      <div className="card pv-banner" style={{ marginBottom: 18 }}>
+        <div>
+          <b>📄 Papierwerkboek vergelyk met die KI</b>
+          <div className="muted" style={{ fontSize: ".9rem" }}>Laai ’n gescande, nagesiene werkboek op (graad 8 of 9) en sien jou kommentaar langs dié van die KI.</div>
+        </div>
+        <Link className="btn primary sm" href="/onderwyser/pdf-vergelyking">Laai PDF op</Link>
+      </div>
       {sp.nie ? <div className="alert warn" style={{ marginBottom: 16 }}>Geen groep met daardie kode nie.</div> : null}
 
       {waiting.length ? (
-        <div className="card" style={{ marginBottom: 22, borderColor: "color-mix(in srgb, var(--wait) 35%, var(--line))" }}>
-          <h2 style={{ color: "var(--wait)" }}>Wag vir jou aftekening ({waiting.length})</h2>
+        <details open className="pv-acc" style={{ marginBottom: 22, borderColor: "color-mix(in srgb, var(--wait) 35%, var(--line))" }}>
+          <summary><span className="t" style={{ color: "var(--wait)" }}>Wag vir jou aftekening ({waiting.length})</span></summary>
+          <div className="body">
           <div className="dtable-wrap" style={{ boxShadow: "none" }}>
             <table className="dtable">
               <tbody>
@@ -110,7 +119,8 @@ export default async function OnderwyserTuis({ searchParams }: { searchParams: P
               </tbody>
             </table>
           </div>
-        </div>
+          </div>
+        </details>
       ) : null}
 
       <div className="tabs">

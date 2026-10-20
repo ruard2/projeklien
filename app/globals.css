@@ -531,3 +531,44 @@ details > summary { cursor: pointer; font-weight: 600; }
 .vote.on.up { background: var(--ok-soft); border-color: var(--ok); }
 .vote.on.down { background: var(--red-soft); border-color: var(--red); }
 .vote + .vote { margin-left: 6px; }
+.pv-choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+.pv-choice { display: grid; gap: 2px; text-align: left; border: 2px solid var(--line); border-radius: var(--radius-sm); background: #fff; padding: 12px 14px; cursor: pointer; font: inherit; color: inherit; }
+.pv-choice b { font-size: 1.05rem; }
+.pv-choice span { font-size: .93rem; }
+.pv-choice small { color: var(--muted); }
+.pv-choice.on { border-color: var(--blue); background: var(--blue-soft); }
+.pv-acc { border: 1px solid var(--line); border-radius: var(--radius); background: var(--card); box-shadow: var(--shadow); }
+.pv-acc + .pv-acc { margin-top: 10px; }
+.pv-acc > summary { list-style: none; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 14px 16px; font-weight: 600; }
+.pv-acc > summary::-webkit-details-marker { display: none; }
+.pv-acc > summary::before { content: "▸"; color: var(--muted); transition: transform .15s; }
+.pv-acc[open] > summary::before { transform: rotate(90deg); }
+.pv-acc > summary .t { flex: 1 1 200px; }
+.pv-acc > .body { padding: 0 16px 16px; }
+.pv-banner { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }
+.cp-acc > summary { list-style: none; cursor: pointer; }
+.cp-acc > summary::-webkit-details-marker { display: none; }
+.cp-acc > summary::after { content: "▾"; color: var(--muted); margin-left: 4px; transition: transform .15s; }
+.cp-acc:not([open]) > summary { border-bottom: 0; }
+.cp-acc:not([open]) > summary::after { transform: rotate(-90deg); }
+
+/* ---------------------------------------------------------------- Kieslys bo-aan */
+.topnav .tm-primary { display: flex; align-items: center; gap: 4px; }
+.tm { position: relative; }
+.tm-btn { display: inline-flex; align-items: center; gap: 6px; }
+.tm-panel {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 40; min-width: 220px;
+  background: #fff; border: 1px solid var(--line); border-radius: var(--radius-sm); box-shadow: 0 12px 30px rgba(0,0,0,.18);
+  padding: 6px; display: grid;
+}
+.tm-panel a, .tm-panel button { color: var(--ink) !important; border-radius: 8px !important; padding: 10px 12px !important; text-align: left; width: 100%; font-size: .95rem !important; }
+.tm-panel a:hover, .tm-panel button:hover { background: var(--paper-2) !important; }
+.tm-panel form { display: block; }
+.tm-panel .tm-mobile { display: none; }
+.tm-panel hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+@media (max-width: 900px) {
+  .topnav .tm-primary { display: none; }
+  .tm-panel .tm-mobile { display: grid; }
+}
+.tm-l-mob { display: none; }
+@media (max-width: 900px) { .tm-l-desk { display: none; } .tm-l-mob { display: inline; } }

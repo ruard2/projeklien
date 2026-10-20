@@ -9,8 +9,12 @@ import { STATUS_LABEL } from "@/lib/pdf-vergelyking/status";
 export const metadata = { title: "PDF-vergelyking" };
 
 
-export default async function PdfVergelyking() {
+export default async function PdfVergelyking({ searchParams }: { searchParams: Promise<{ groep?: string }> }) {
   const t = await requireTeacher();
+  const { groep } = await searchParams;
+  const group = groep
+    ? await db.group.findFirst({ where: { id: groep, project: { schoolId: t.schoolId } }, select: { id: true, name: true, klas: true, code: true, projectId: true } })
+    : null;
   const [projects, items] = await Promise.all([
     db.project.findMany({ where: { schoolId: t.schoolId, active: true }, orderBy: [{ grade: "asc" }, { title: "asc" }] }),
     db.pdfComparison.findMany({
@@ -29,13 +33,16 @@ export default async function PdfVergelyking() {
       </p>
 
       <div className="card">
-        <h2>Nuwe werkboek oplaai</h2>
+        <h2>{group ? "Papierwerkboek vir hierdie groep oplaai" : "Nuwe werkboek oplaai"}</h2>
         {!aiConfigured() ? (
           <div className="alert err">Die KI is nie op hierdie bediener opgestel nie (OPENAI_API_KEY ontbreek).</div>
         ) : projects.length === 0 ? (
           <div className="alert info">Daar is nog geen aktiewe projek nie.</div>
         ) : (
-          <PdfOplaai projects={projects.map((p) => ({ id: p.id, label: `${p.title} (graad ${p.grade}, ${p.year})` }))} />
+          <PdfOplaai
+            projects={projects.map((p) => ({ id: p.id, grade: p.grade, title: p.phenomenon, sub: `${p.title} · ${p.year}` }))}
+            group={group ? { id: group.id, projectId: group.projectId, label: `Vir groep ${[group.name, group.klas ? `klas ${group.klas}` : null, group.code].filter(Boolean).join(" · ")}` } : undefined}
+          />
         )}
       </div>
 

@@ -9,6 +9,7 @@ import { loadWorkbook } from "@/lib/diens";
 import type { FeedbackResult } from "@/lib/ki";
 import { workbookOverview } from "@/lib/oorsig";
 import { requireTeacher } from "@/lib/sessie";
+import { STATUS_LABEL } from "@/lib/pdf-vergelyking/status";
 
 type HistoryEntry = { action: string; by?: string; comment?: string; at: string };
 
@@ -31,6 +32,12 @@ export default async function OnderwyserGroep({ params }: { params: Promise<{ id
     if (!latestFb.has(f.sheet)) latestFb.set(f.sheet, f);
     fbCount.set(f.sheet, (fbCount.get(f.sheet) ?? 0) + 1);
   }
+  const focusCp = checkpoints.find((c) => c.unlocked && c.status !== "APPROVED")?.number;
+  const pdfs = await db.pdfComparison.findMany({
+    where: { groupId: id, schoolId: t.schoolId, ...(t.role === "TEACHER" ? { teacherId: t.id } : {}) },
+    orderBy: { createdAt: "desc" },
+    select: { id: true, createdAt: true, status: true, fileName: true }
+  });
   const named = members.map((m, i) => ({ name: m.trim(), i: i + 1 })).filter((m) => m.name);
   const personal = tpl.sheets.find((s) => s.perMember);
 
@@ -57,14 +64,30 @@ export default async function OnderwyserGroep({ params }: { params: Promise<{ id
           <Link className="btn sm" href={`/onderwyser/groep/${id}/druk`}>
             Hele werkboek / druk
           </Link>
+          <Link className="btn sm" href={`/onderwyser/pdf-vergelyking?groep=${id}`}>
+            📄 Papierwerkboek oplaai
+          </Link>
         </div>
       </div>
 
+      {pdfs.length ? (
+        <div className="alert info" style={{ marginBottom: 16 }}>
+          <b>Papierwerkboek-vergelykings:</b>{" "}
+          {pdfs.map((p, i) => (
+            <span key={p.id}>
+              {i ? " · " : ""}
+              <Link href={`/onderwyser/pdf-vergelyking/${p.id}`}>{p.createdAt.toLocaleDateString("af-ZA")} ({STATUS_LABEL[p.status]?.text ?? p.status})</Link>
+            </span>
+          ))}
+        </div>
+      ) : null}
+
+      <p className="muted" style={{ fontSize: ".88rem", margin: "0 0 10px" }}>Klik op ’n kontrolepunt om sy werkblaaie oop of toe te maak.</p>
       {checkpoints.map((cp) => {
         const history = (Array.isArray(cp.record?.history) ? cp.record!.history : []) as unknown as HistoryEntry[];
         return (
-          <div className="cp-block" key={cp.number} id={`kp${cp.number}`} style={{ scrollMarginTop: 90 }}>
-            <div className={`cp-head ${cp.status === "APPROVED" ? "approved" : !cp.unlocked ? "locked" : ""}`}>
+          <details className="cp-block cp-acc" key={cp.number} id={`kp${cp.number}`} style={{ scrollMarginTop: 90 }} open={cp.status === "SUBMITTED" || cp.status === "RETURNED" || cp.number === focusCp}>
+            <summary className={`cp-head ${cp.status === "APPROVED" ? "approved" : !cp.unlocked ? "locked" : ""}`}>
               <span className="num">{cp.status === "APPROVED" ? "✓" : cp.number}</span>
               <div>
                 <div className="title">{cp.title}</div>
@@ -74,7 +97,7 @@ export default async function OnderwyserGroep({ params }: { params: Promise<{ id
                 <CpBadge status={cp.status} />
                 {!cp.unlocked ? <span className="badge">Nog gesluit vir die groep</span> : null}
               </div>
-            </div>
+            </summary>
 
             {cp.sheets.map((s) => {
               const fb = latestFb.get(s.key);
@@ -167,7 +190,7 @@ export default async function OnderwyserGroep({ params }: { params: Promise<{ id
                 </details>
               </div>
             ) : null}
-          </div>
+          </details>
         );
       })}
 

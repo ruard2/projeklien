@@ -306,6 +306,8 @@ model PdfComparison {
   teacherId   String
   teacherName String
   projectId   String
+  // Opsioneel: die groep in die app waaraan hierdie papierwerkboek behoort.
+  groupId     String?
   templateKey String
   fileName    String
   // Die PDF self; word geskrap sodra die onderwyser die uitlees goedkeur.
@@ -319,6 +321,7 @@ model PdfComparison {
   votes       PdfVote[]
 
   @@index([schoolId, teacherId, createdAt])
+  @@index([groupId])
 }
 
 model PdfVote {

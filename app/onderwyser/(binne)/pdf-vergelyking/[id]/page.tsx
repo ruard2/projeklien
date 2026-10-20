@@ -32,7 +32,10 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
   return (
     <div className="container">
       {busy && !stale ? <Herlaai seconds={5} /> : null}
-      <p><Link href="/onderwyser/pdf-vergelyking">← Alle oplaaie</Link></p>
+      <p>
+        <Link href="/onderwyser/pdf-vergelyking">← Alle oplaaie</Link>
+        {c.groupId ? <> · <Link href={`/onderwyser/groep/${c.groupId}`}>Groep in die app</Link></> : null}
+      </p>
       <div className="row" style={{ gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
         <h1 className="grow" style={{ margin: 0 }}>{template.label}</h1>
         <span className={`badge ${st.cls}`}>{st.text}</span>
@@ -69,8 +72,14 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
           {sheets.map((s) => {
             const e = extracted.sheets[s.key];
             return (
-              <article className="card" key={s.key}>
-                <h2>Werkblad {s.number} · {s.title}</h2>
+              <details className="pv-acc" key={s.key}>
+                <summary>
+                  <span className="t">Werkblad {s.number} · {s.title}</span>
+                  {e.juf.kommentaar.length || e.juf.kommentaar_vorige.length ? <span className="badge red">{e.juf.kommentaar.length + e.juf.kommentaar_vorige.length} juf-opmerking(s)</span> : null}
+                  {e.juf.afgeteken ? <span className="badge ok">afgeteken</span> : null}
+                  {e.onseker.length ? <span className="badge warn">{e.onseker.length} onseker</span> : null}
+                </summary>
+                <div className="body">
                 <div className="pv-cols">
                   <div className="pv-box lln">
                     <h4>Leerders</h4>
@@ -84,10 +93,11 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
                   </div>
                 </div>
                 {e.onseker.length ? <div className="alert info" style={{ marginTop: 10, fontSize: ".88rem" }}><b>Onseker:</b> {e.onseker.join(" · ")}</div> : null}
-              </article>
+                </div>
+              </details>
             );
           })}
-          <div className="card">
+          <div className="card" style={{ marginTop: 16 }}>
             <div className="btn-row">
               <form action={approveExtraction}><input type="hidden" name="id" value={c.id} /><button className="btn ok lg">Akkoord – gee aan die KI</button></form>
               <form action={retryComparison}><input type="hidden" name="id" value={c.id} /><button className="btn">Lees weer uit</button></form>
@@ -99,6 +109,7 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
       {/* ---------------- Stap 3: vergelyking */}
       {(c.status === "ki" || c.status === "klaar" || (c.status === "fout" && Object.keys(results).length > 0)) && extracted ? (
         <>
+          <p className="muted" style={{ fontSize: ".9rem" }}>Klik op ’n werkblad om jou kommentaar, die KI se terugvoer en die oordeel per kriterium te sien.</p>
           {c.status === "klaar" ? (
             <div className="stats">
               {Object.entries(OOREENKOMS_LABEL).map(([k, v]) => (
@@ -111,14 +122,19 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
             const r = results[s.key];
             const v = r?.vergelyking;
             const ov = v ? OOREENKOMS_LABEL[v.ooreenkoms] : null;
+            const up = (r?.result?.kriteria ?? []).filter((k) => myVotes.get(`${s.key}|${k.id}`) === 1).length;
+            const down = (r?.result?.kriteria ?? []).filter((k) => myVotes.get(`${s.key}|${k.id}`) === -1).length;
             return (
-              <article className="card" key={s.key}>
-                <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
-                  <h2 className="grow" style={{ margin: 0 }}>Werkblad {s.number} · {s.title}</h2>
+              <details className="pv-acc" key={s.key}>
+                <summary>
+                  <span className="t">Werkblad {s.number} · {s.title}</span>
+                  {!r ? <span className="badge wait">word verwerk…</span> : r.fout ? <span className="badge red">fout</span> : null}
                   {ov ? <span className={`badge ${ov.cls}`}>{ov.text}</span> : null}
-                  {r?.result ? <span className={`badge ${r.gereed ? "ok" : "plain"}`}>{r.gereed ? "KI: gereed" : "KI: nog nie gereed"}</span> : null}
-                </div>
-                {!r ? <p className="muted"><span className="spinner dark" /> Word verwerk…</p> : r.fout ? <div className="alert err">{r.fout}</div> : (
+                  {r?.result ? <span className={`badge plain ${r.gereed ? "ok" : ""}`}>{r.gereed ? "KI: gereed" : "KI: nog nie gereed"}</span> : null}
+                  {up || down ? <span className="muted" style={{ fontSize: ".85rem", fontWeight: 500 }}>{up}👍 {down}👎</span> : null}
+                </summary>
+                <div className="body">
+                {!r ? <p className="muted" style={{ margin: 0 }}><span className="spinner dark" /> Word verwerk…</p> : r.fout ? <div className="alert err">{r.fout}</div> : (
                   <>
                     {v ? <p style={{ margin: "10px 0" }}>{v.opsomming}</p> : null}
                     <div className="pv-cols">
@@ -169,7 +185,8 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
                     </table>
                   </>
                 )}
-              </article>
+                </div>
+              </details>
             );
           })}
         </>
