@@ -20,6 +20,7 @@ export default async function OnderwyserLayout({ children }: { children: React.R
         <Link href="/onderwyser/groepe">Groepkodes</Link>
         <Link href="/onderwyser/kriteria">Kriteria</Link>
         <Link href="/onderwyser/my-terugvoer">My terugvoer</Link>
+        <Link href="/onderwyser/pdf-vergelyking">PDF-vergelyking</Link>
         <Link href="/onderwyser/ki-verslae">KI-verslae{teacherReportCount ? ` (${teacherReportCount})` : ""}</Link>
         {isAdminRole(t.role) ? <Link href="/onderwyser/beheer">Bestuur</Link> : null}
         {reviewer ? (

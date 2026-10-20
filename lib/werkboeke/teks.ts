@@ -52,11 +52,16 @@ export function redact(text: string, members: string[]): string {
     .replace(/[\w.+-]+@[\w-]+\.[\w.-]+/g, "[e-pos verwyder]")
     .replace(/\b\d{13}\b/g, "[ID-nommer verwyder]")
     .replace(/(\+27|\b0)[\s-]?\d{2}[\s-]?\d{3}[\s-]?\d{4}\b/g, "[telefoonnommer verwyder]");
-  members.forEach((name, i) => {
-    const n = name.trim();
-    if (n.length < 2) return;
-    out = out.replace(new RegExp(`(?<![\\p{L}])${escapeRegex(n)}(?![\\p{L}])`, "giu"), `Lid ${i + 1}`);
+  // Volle name eers, dan net die voornaam (as iemand “Anke Botha” as lid ingevul het).
+  const variants = members.flatMap((name, i) => {
+    const n = name.trim().replace(/\s+/g, " ");
+    const first = n.split(" ")[0] ?? "";
+    return [n, first !== n ? first : ""].filter((x) => x.length >= 2).map((x) => ({ x, i }));
   });
+  variants.sort((a, b) => b.x.length - a.x.length);
+  for (const { x, i } of variants) {
+    out = out.replace(new RegExp(`(?<![\\p{L}])${escapeRegex(x)}(?![\\p{L}])`, "giu"), `Lid ${i + 1}`);
+  }
   return out;
 }
 
@@ -83,7 +88,10 @@ function memberLabel(v: unknown, o: TextOptions): string {
   if (!name) return "";
   if (!o.anonymise) return name;
   const key = name.toLocaleLowerCase("af");
-  const idx = o.members.findIndex((m) => m.trim().toLocaleLowerCase("af") === key);
+  const idx = o.members.findIndex((m) => {
+    const full = m.trim().replace(/\s+/g, " ").toLocaleLowerCase("af");
+    return Boolean(full) && (full === key || full.split(" ")[0] === key);
+  });
   if (idx >= 0) return `Lid ${idx + 1}`;
   let map = unknownNames.get(o);
   if (!map) unknownNames.set(o, (map = new Map()));

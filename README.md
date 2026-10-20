@@ -10,6 +10,7 @@ Groepe vul hul werkboek aanlyn in, vra KI-terugvoer teen vaste kriteria, en onde
 | **Leerdergroep** | Meld aan met ’n groepkode (geen persoonlike rekeninge nie). Vul werkblaaie in; alles stoor outomaties. Vra terugvoer so dikwels as nodig. Dien ’n kontrolepunt in sodra al sy werkblaaie “Gereed vir onderwyser” is. |
 | **KI (OpenAI)** | Lees die oorspronklike werkboekopdrag, die huidige antwoord en die relevante vorige werkblaaie. Beoordeel elke kriterium as *behaal / gedeeltelik / nog nie*, wys teenstrydighede en ontbrekende bewyse uit, vra oop vrae en let op die vyf reëls. Skryf nooit antwoorde nie. |
 | **Onderwyser** | Sien elke groep se werk, die KI-terugvoer en die weergawegeskiedenis. Teken af of stuur terug met kommentaar. Kan die KI oorheers (“verklaar gereed”) en ’n kontrolepunt heropen. |
+| **PDF-vergelyking** (elke onderwyser) | Laai ’n gescande, nagesiene papierwerkboek op. OpenAI lees die leerders se handskrif en die onderwyser se merke apart uit; die onderwyser keur die uitlees goed; daarna kry die leerders se werk die gewone KI-terugvoer, en per werkblad verskyn die onderwyser se kommentaar langs die KI s’n (ooreenkoms, net juf, net KI) met 👍/👎 per KI-kriterium. |
 | **Administrateur** | Projekte (uit werkboek-sjablone) en onderwysers bestuur. |
 | **Ontwikkelaar** | Het administrateurtoegang en verwerk onderwyserterugvoer en leerderverslae oor KI-antwoorde. |
 
@@ -26,6 +27,7 @@ Reëls wat bediener-kant afgedwing word:
 ### Privaatheid (POPIA)
 - Groepe meld met kodes aan. Slegs voorname van lede word gestoor, en dit word **nooit** na die KI gestuur nie (vervang met “Lid 1”, …).
 - E-posadresse, telefoon- en ID-nommers word uit teks verwyder voordat dit na die KI gaan.
+- **Uitsondering – PDF-vergelyking:** om ’n papierwerkboek uit te lees, gaan die hele skandering (mét name) na OpenAI. Die onderwyser bevestig dit by die oplaai; die PDF word geskrap sodra die uitlees goedgekeur is, en die KI-terugvoer daarna is weer geanonimiseer. Opsioneel: `OPENAI_PDF_MODEL` (verstek: `OPENAI_MODEL`).
 - Foto’s word nooit na die KI gestuur nie; dit word in die blaaier verklein (wat ook GPS/EXIF verwyder) en vereis ’n toestemmingsbevestiging.
 
 ## Struktuur

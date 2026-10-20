@@ -22,6 +22,7 @@ model School {
   projects  Project[]
   aiReports AiReport[]
   aiEvalCases AiEvalCase[]
+  pdfComparisons PdfComparison[]
 }
 
 enum TeacherRole {
@@ -290,4 +291,47 @@ model AiEvalCase {
 
   @@index([schoolId, active])
   @@index([lastPassed])
+}
+
+// ---------------------------------------------------------------- PDF-vergelyking
+// ’n Onderwyser laai ’n gescande papierwerkboek op. OpenAI lees leerder- en
+// onderwyserhandskrif apart uit; ná akkoord kry die leerders se antwoorde die gewone
+// KI-terugvoer, wat dan langs die onderwyser se eie kommentaar gewys word.
+model PdfComparison {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  schoolId    String
+  school      School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  teacherId   String
+  teacherName String
+  projectId   String
+  templateKey String
+  fileName    String
+  // Die PDF self; word geskrap sodra die onderwyser die uitlees goedkeur.
+  pdf         Bytes?
+  // "uitlees" | "nagaan" | "ki" | "klaar" | "fout"
+  status      String    @default("uitlees")
+  error       String?
+  extracted   Json?
+  results     Json?
+  model       String?
+  votes       PdfVote[]
+
+  @@index([schoolId, teacherId, createdAt])
+}
+
+model PdfVote {
+  id           String        @id @default(cuid())
+  comparisonId String
+  comparison   PdfComparison @relation(fields: [comparisonId], references: [id], onDelete: Cascade)
+  sheet        String
+  criterionId  String
+  teacherId    String
+  // 1 = duim op, -1 = duim af
+  vote         Int
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@unique([comparisonId, sheet, criterionId, teacherId])
 }
