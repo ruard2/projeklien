@@ -14,6 +14,7 @@ export default async function OnderwyserLayout({ children }: { children: React.R
     reviewer ? db.devFeedback.count({ where: { schoolId: t.schoolId, status: "nuut" } }) : Promise.resolve(0)
   ]);
   const newCount = teacherReportCount + developerFeedbackCount;
+  const openRuleChanges = isAdminRole(t.role) ? await db.aiRuleEvent.count({ where: { schoolId: t.schoolId, reviewedAt: null } }) : 0;
   return (
     <>
       <Bo title="VOL · Onderwyser" subtitle={`${t.name} · ${t.school.name}`} home="/onderwyser">
@@ -24,6 +25,7 @@ export default async function OnderwyserLayout({ children }: { children: React.R
               <Link href="/onderwyser/pdf-vergelyking">PDF-vergelyking</Link>
               <Link href="/onderwyser/ki-verslae">KI-verslae{teacherReportCount ? ` (${teacherReportCount})` : ""}</Link>
               {reviewer ? <Link href="/onderwyser/terugvoer">Terugvoer{newCount ? ` (${newCount})` : ""}</Link> : null}
+              {isAdminRole(t.role) ? <Link href="/onderwyser/aktiwiteit">Aktiwiteit{openRuleChanges ? ` (${openRuleChanges})` : ""}</Link> : null}
             </>
           }
           more={

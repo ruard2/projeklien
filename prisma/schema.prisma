@@ -382,7 +382,27 @@ model AiRuleEvent {
   oldText  String?
   newText  String?
   note     String?
+  // Nagegaan deur ’n administrateur (handelinge van admins self is outomaties nagegaan)
+  reviewedAt     DateTime?
+  reviewedByName String?
 
   @@index([schoolId, at])
   @@index([ruleId, at])
+}
+
+// Ouditlog van alles wat onderwysers doen (aanmeld, aftekening, kommentaar, PDF, duimpies, bestuur…).
+// KI-reëlhandelinge staan apart in AiRuleEvent en word op die aktiwiteitsbladsy saamgevoeg.
+model TeacherActivity {
+  id          String   @id @default(cuid())
+  at          DateTime @default(now())
+  schoolId    String
+  teacherId   String
+  teacherName String
+  type        String
+  summary     String
+  link        String?
+  details     Json?
+
+  @@index([schoolId, at])
+  @@index([teacherId, at])
 }

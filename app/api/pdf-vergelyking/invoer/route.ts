@@ -4,6 +4,7 @@ import { fout, handle } from "@/lib/api";
 import { db } from "@/lib/db";
 import { parseImport } from "@/lib/pdf-vergelyking/invoer";
 import { currentTeacher } from "@/lib/sessie";
+import { logActivity } from "@/lib/aktiwiteit";
 
 export async function POST(req: Request) {
   return handle(async () => {
@@ -40,6 +41,7 @@ export async function POST(req: Request) {
       });
       created.push(c.id);
     }
+    await logActivity(t, "pdf", `${created.length} uitgelese werkboek(e) ingevoer (JSON): ${items.map((i) => i.name).join(", ").slice(0, 600)}`, { link: "/onderwyser/pdf-vergelyking" });
     return NextResponse.json({ ids: created });
   });
 }

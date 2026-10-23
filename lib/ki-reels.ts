@@ -30,13 +30,24 @@ export async function rulesFor(schoolId: string, templateKey: string, sheetKey: 
 export async function logRuleEvent(e: {
   ruleId: string;
   schoolId: string;
-  by: { id: string; name: string };
+  by: { id: string; name: string; role?: string };
   action: "aangemaak" | "gewysig" | "afgeskakel" | "aangeskakel" | "geskrap" | "herstel" | "teruggedraai";
   oldText?: string | null;
   newText?: string | null;
   note?: string | null;
 }) {
   await db.aiRuleEvent.create({
-    data: { ruleId: e.ruleId, schoolId: e.schoolId, byId: e.by.id, byName: e.by.name, action: e.action, oldText: e.oldText ?? null, newText: e.newText ?? null, note: e.note?.slice(0, 2000) ?? null }
+    data: {
+      ruleId: e.ruleId,
+      schoolId: e.schoolId,
+      byId: e.by.id,
+      byName: e.by.name,
+      action: e.action,
+      oldText: e.oldText ?? null,
+      newText: e.newText ?? null,
+      note: e.note?.slice(0, 2000) ?? null,
+      // Handelinge van administrateurs/ontwikkelaars hoef nie weer nagegaan te word nie.
+      ...(e.by.role === "ADMIN" || e.by.role === "DEVELOPER" ? { reviewedAt: new Date(), reviewedByName: e.by.name } : {})
+    }
   });
 }

@@ -11,6 +11,7 @@ import { logRuleEvent, rulesFor, RULE_MAX } from "@/lib/ki-reels";
 import { cleanSheetData, jufText, membersFrom } from "@/lib/pdf-vergelyking/skema";
 import { getTemplate } from "@/lib/werkboeke/sjablone";
 import { requireTeacher } from "@/lib/sessie";
+import { logActivity } from "@/lib/aktiwiteit";
 
 const path = (id: string) => `/onderwyser/pdf-vergelyking/${id}`;
 
@@ -20,6 +21,7 @@ export async function approveExtraction(form: FormData) {
   if (c.status !== "nagaan") redirect(path(c.id));
   // Die PDF (met name) word nie langer as nodig gehou nie.
   await db.pdfComparison.update({ where: { id: c.id }, data: { status: "ki", pdf: null, error: null } });
+  await logActivity(t, "pdf", `Uitlees goedgekeur (akkoord) · ${c.fileName}`, { link: path(c.id) });
   after(() => runFeedback(c.id));
   redirect(path(c.id));
 }
@@ -31,9 +33,11 @@ export async function retryComparison(form: FormData) {
   if (busy || (c.status === "nagaan" && !c.pdf)) redirect(path(c.id));
   if (c.pdf && (c.status === "nagaan" || c.status === "fout" || c.status === "uitlees")) {
     await db.pdfComparison.update({ where: { id: c.id }, data: { status: "uitlees", error: null } });
+    await logActivity(t, "pdf", `Weer uitgelees · ${c.fileName}`, { link: path(c.id) });
     after(() => runExtraction(c.id));
   } else if (c.extracted) {
     await db.pdfComparison.update({ where: { id: c.id }, data: { status: "ki", error: null } });
+    await logActivity(t, "pdf", `KI-terugvoer weer probeer · ${c.fileName}`, { link: path(c.id) });
     after(() => runFeedback(c.id));
   }
   redirect(path(c.id));
@@ -43,6 +47,7 @@ export async function deleteComparison(form: FormData) {
   const t = await requireTeacher();
   const c = await loadOwnComparison(String(form.get("id")), t);
   await db.pdfComparison.delete({ where: { id: c.id } });
+  await logActivity(t, "pdf", `Vergelyking geskrap · ${c.fileName}`);
   revalidatePath("/onderwyser/pdf-vergelyking");
   redirect("/onderwyser/pdf-vergelyking");
 }
@@ -78,6 +83,10 @@ export async function savePdfSheet(input: { id: string; sheet: string; data: unk
       juf: { ...current.juf, kommentaar: lines(input.kommentaar), kommentaar_vorige: lines(input.vorige) }
     };
     await db.pdfComparison.update({ where: { id: c.id }, data: { extracted: extracted as unknown as Prisma.InputJsonValue } });
+    await logActivity(t, "pdf", `Uitlees reggestel: werkblad ${sheet.number} · ${c.fileName}`, {
+      link: path(c.id),
+      details: { kind: "wysig", templateKey: c.templateKey, sheet: input.sheet, before: { data: current.data, juf: current.juf }, after: { data: extracted.sheets[input.sheet].data, juf: extracted.sheets[input.sheet].juf } }
+    });
     revalidatePath(path(c.id));
     return { ok: true };
   } catch (e) {
@@ -101,6 +110,7 @@ export async function setVote(k: VoteKey & { vote: 1 | -1 }): Promise<{ vote: nu
     const c = await loadOwnComparison(k.id, t);
     const where = voteWhere(c.id, k.sheet.slice(0, 40), k.criterion.slice(0, 60), t.id);
     const existing = await db.pdfVote.findUnique({ where });
+    await logActivity(t, "duim", `${k.vote === 1 ? "👍" : "👎"} by werkblad ${k.sheet}, kriterium ${k.criterion} · ${c.fileName}`, { link: path(c.id) });
     if (existing?.vote === k.vote && k.vote === 1) {
       await db.pdfVote.delete({ where });
       revalidatePath(path(c.id));
@@ -142,6 +152,7 @@ export async function chatVote(k: VoteKey & { text: string }): Promise<{ chat?: 
       history
     });
     const chat = [...history, { van: "ki" as const, teks: out.antwoord, at: new Date().toISOString() }];
+    await logActivity(t, "duim", `Gesprek met KI (werkblad ${k.sheet}, kriterium ${k.criterion}): “${text.slice(0, 300)}”`, { link: path(c.id), details: { kind: "gesprek", juf: text, ki: out.antwoord, reel: out.reel } });
     await db.pdfVote.upsert({
       where,
       create: { comparisonId: c.id, sheet: k.sheet, criterionId: k.criterion, teacherId: t.id, vote: -1, reason: text, chat: chat as unknown as Prisma.InputJsonValue },
@@ -191,6 +202,7 @@ export async function rerunSheetAction(k: { id: string; sheet: string }): Promis
   try {
     const c = await loadOwnComparison(k.id, t);
     const r = await rerunSheet(c.id, k.sheet);
+    await logActivity(t, "pdf", `Werkblad ${k.sheet} weer deur KI beoordeel · ${c.fileName}`, { link: path(c.id) });
     if (!r) return { error: "Werkblad nie gevind nie." };
     if (r.fout) return { error: r.fout };
     revalidatePath(path(c.id));

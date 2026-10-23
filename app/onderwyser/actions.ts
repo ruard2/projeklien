@@ -10,6 +10,7 @@ import { requireAdmin, requireFeedbackReviewer, requireTeacher } from "@/lib/ses
 import { DEV_FEEDBACK_STATUSES, EXPECTED_VERDICTS, FEEDBACK_SCOPES, ISSUE_TYPES, REGRESSION_STATUSES, cleanText, isOneOf } from "@/lib/terugvoer-beheer";
 import { getTemplate, listTemplates } from "@/lib/werkboeke/sjablone";
 import { hashPassword } from "@/lib/wagwoord";
+import { logActivity } from "@/lib/aktiwiteit";
 
 export type ActionState = { error?: string; ok?: string } | undefined;
 
@@ -18,6 +19,10 @@ async function ownGroup(groupId: string) {
   const g = await db.group.findUnique({ where: { id: groupId }, include: { project: true } });
   if (!g || g.project.schoolId !== t.schoolId) throw new DiensFout("Groep nie gevind nie.", 404);
   return { t, g };
+}
+
+function groupLabel(g: { name: string | null; klas: string | null; code: string }) {
+  return [g.name, g.klas ? `klas ${g.klas}` : null, g.code].filter(Boolean).join(" · ");
 }
 
 async function attempt(fn: () => Promise<string | void>): Promise<ActionState> {
@@ -39,8 +44,9 @@ export async function decide(_prev: ActionState, form: FormData): Promise<Action
     const n = Number(form.get("n"));
     const decision = form.get("decision") === "APPROVED" ? "APPROVED" : "RETURNED";
     const comment = String(form.get("comment") ?? "").trim().slice(0, 4000);
-    const { t } = await ownGroup(groupId);
+    const { t, g } = await ownGroup(groupId);
     await decideCheckpoint({ id: t.id, name: t.name }, groupId, n, decision, comment);
+    await logActivity(t, "kontrolepunt", `${decision === "APPROVED" ? "Afgeteken" : "Teruggestuur"}: kontrolepunt ${n} · ${groupLabel(g)}${comment ? ` – “${comment}”` : ""}`, { link: `/onderwyser/groep/${groupId}#kp${n}` });
     revalidatePath(`/onderwyser/groep/${groupId}`);
     revalidatePath("/onderwyser");
     return decision === "APPROVED" ? `Kontrolepunt ${n} is afgeteken.` : `Kontrolepunt ${n} is teruggestuur.`;
@@ -52,8 +58,9 @@ export async function reopen(_prev: ActionState, form: FormData): Promise<Action
     const groupId = String(form.get("groupId"));
     const n = Number(form.get("n"));
     const comment = String(form.get("comment") ?? "").trim().slice(0, 4000);
-    const { t } = await ownGroup(groupId);
+    const { t, g } = await ownGroup(groupId);
     await reopenCheckpoint({ id: t.id, name: t.name }, groupId, n, comment || "Heropen deur die onderwyser.");
+    await logActivity(t, "kontrolepunt", `Heropen: kontrolepunt ${n} · ${groupLabel(g)}${comment ? ` – “${comment}”` : ""}`, { link: `/onderwyser/groep/${groupId}#kp${n}` });
     revalidatePath(`/onderwyser/groep/${groupId}`);
     return `Kontrolepunt ${n} is weer oop vir die groep.`;
   });
@@ -63,8 +70,9 @@ export async function markReady(_prev: ActionState, form: FormData): Promise<Act
   return attempt(async () => {
     const groupId = String(form.get("groupId"));
     const sheet = String(form.get("sheet"));
-    const { t } = await ownGroup(groupId);
+    const { t, g } = await ownGroup(groupId);
     await teacherMarkReady({ name: t.name }, groupId, sheet);
+    await logActivity(t, "gereed", `Werkblad ${sheet} as gereed verklaar (KI oorheers) · ${groupLabel(g)}`, { link: `/onderwyser/groep/${groupId}/${encodeURIComponent(sheet)}` });
     revalidatePath(`/onderwyser/groep/${groupId}`);
     return "Werkblad is as gereed gemerk.";
   });
@@ -76,8 +84,9 @@ export async function teacherNote(_prev: ActionState, form: FormData): Promise<A
     const sheet = String(form.get("sheet"));
     const field = String(form.get("field"));
     const text = String(form.get("text") ?? "");
-    const { t } = await ownGroup(groupId);
+    const { t, g } = await ownGroup(groupId);
     await saveTeacherNote({ name: t.name }, groupId, sheet, field, text);
+    await logActivity(t, "kommentaar", `Kommentaar op werkblad ${sheet} · ${groupLabel(g)}: “${text.trim().slice(0, 300)}”`, { link: `/onderwyser/groep/${groupId}/${encodeURIComponent(sheet)}` });
     revalidatePath(`/onderwyser/groep/${groupId}/${encodeURIComponent(sheet)}`);
     return "Kommentaar gestoor.";
   });
@@ -105,6 +114,7 @@ export async function createGroups(_prev: ActionState, form: FormData): Promise<
         }
       }
     }
+    await logActivity(t, "groepe", `${made} groepkode(s) geskep · ${project.title}${klas ? ` · klas ${klas}` : ""}`, { link: "/onderwyser/groepe" });
     revalidatePath("/onderwyser/groepe");
     revalidatePath("/onderwyser");
     return `${made} nuwe groepkode(s) geskep.`;
@@ -112,8 +122,9 @@ export async function createGroups(_prev: ActionState, form: FormData): Promise<
 }
 
 export async function archiveGroup(form: FormData) {
-  const { g } = await ownGroup(String(form.get("groupId")));
+  const { t, g } = await ownGroup(String(form.get("groupId")));
   await db.group.update({ where: { id: g.id }, data: { archived: !g.archived } });
+  await logActivity(t, "groepe", `${g.archived ? "Groep herstel" : "Groep geargiveer"} · ${groupLabel(g)}`, { link: `/onderwyser/groep/${g.id}` });
   revalidatePath("/onderwyser/groepe");
   revalidatePath("/onderwyser");
 }
@@ -139,6 +150,7 @@ export async function createProject(_prev: ActionState, form: FormData): Promise
         partner: tpl.defaults.partner
       }
     });
+    await logActivity(a, "bestuur", `Projek geskep: ${String(form.get("title") || tpl.label).slice(0, 80)} (${year})`, { link: "/onderwyser/beheer" });
     revalidatePath("/onderwyser/beheer");
     return "Projek geskep.";
   });
@@ -147,7 +159,10 @@ export async function createProject(_prev: ActionState, form: FormData): Promise
 export async function toggleProject(form: FormData) {
   const a = await requireAdmin();
   const p = await db.project.findFirst({ where: { id: String(form.get("projectId")), schoolId: a.schoolId } });
-  if (p) await db.project.update({ where: { id: p.id }, data: { active: !p.active } });
+  if (p) {
+    await db.project.update({ where: { id: p.id }, data: { active: !p.active } });
+    await logActivity(a, "bestuur", `Projek ${p.active ? "gedeaktiveer" : "geaktiveer"}: ${p.title}`, { link: "/onderwyser/beheer" });
+  }
   revalidatePath("/onderwyser/beheer");
 }
 
@@ -163,6 +178,7 @@ export async function createTeacher(_prev: ActionState, form: FormData): Promise
     if (password.length < 8) throw new DiensFout("Die wagwoord moet minstens 8 karakters wees.");
     if (await db.teacher.findUnique({ where: { email } })) throw new DiensFout("Daar is reeds ’n onderwyser met hierdie e-pos.");
     await db.teacher.create({ data: { schoolId: a.schoolId, name, email, role, passwordHash: await hashPassword(password) } });
+    await logActivity(a, "bestuur", `Onderwyser bygevoeg: ${name} (${email}, ${role})`, { link: "/onderwyser/beheer" });
     revalidatePath("/onderwyser/beheer");
     return `${name} is bygevoeg.`;
   });
@@ -171,7 +187,10 @@ export async function createTeacher(_prev: ActionState, form: FormData): Promise
 export async function toggleTeacher(form: FormData) {
   const a = await requireAdmin();
   const t = await db.teacher.findFirst({ where: { id: String(form.get("teacherId")), schoolId: a.schoolId } });
-  if (t && t.id !== a.id) await db.teacher.update({ where: { id: t.id }, data: { active: !t.active } });
+  if (t && t.id !== a.id) {
+    await db.teacher.update({ where: { id: t.id }, data: { active: !t.active } });
+    await logActivity(a, "bestuur", `Onderwyser ${t.active ? "gedeaktiveer" : "geaktiveer"}: ${t.name}`, { link: "/onderwyser/beheer" });
+  }
   revalidatePath("/onderwyser/beheer");
 }
 
@@ -181,7 +200,9 @@ export async function changeTeacherRole(form: FormData) {
   const role = String(form.get("role"));
   if (!isOneOf(role, ["DEVELOPER", "ADMIN", "TEACHER"] as const)) return;
   if (teacherId === a.id) return;
+  const target = await db.teacher.findFirst({ where: { id: teacherId, schoolId: a.schoolId }, select: { name: true, role: true } });
   await db.teacher.updateMany({ where: { id: teacherId, schoolId: a.schoolId }, data: { role } });
+  if (target) await logActivity(a, "bestuur", `Rol van ${target.name}: ${target.role} → ${role}`, { link: "/onderwyser/beheer" });
   revalidatePath("/onderwyser/beheer");
 }
 
@@ -191,6 +212,7 @@ export async function changeOwnPassword(_prev: ActionState, form: FormData): Pro
     const pw = String(form.get("password") ?? "");
     if (pw.length < 8) throw new DiensFout("Minstens 8 karakters.");
     await db.teacher.update({ where: { id: t.id }, data: { passwordHash: await hashPassword(pw) } });
+    await logActivity(t, "rekening", "Eie wagwoord verander");
     return "Wagwoord verander.";
   });
 }
@@ -236,6 +258,7 @@ export async function sendDevFeedback(_prev: ActionState, form: FormData): Promi
         scope: isOneOf(String(form.get("scope") ?? ""), FEEDBACK_SCOPES) ? String(form.get("scope")) : null
       }
     });
+    await logActivity(t, "terugvoer", `Terugvoer aan ontwikkelaar (${kind}${rating ? `, ${rating}` : ""}): “${message.slice(0, 300)}”`, { link: "/onderwyser/my-terugvoer" });
     revalidatePath("/onderwyser/terugvoer");
     return "Dankie! Jou terugvoer is gestoor en gaan na die ontwikkelaar.";
   });
@@ -261,6 +284,7 @@ export async function setDevFeedbackStatus(form: FormData) {
       expectedVerdict: isOneOf(expectedVerdict, EXPECTED_VERDICTS) ? expectedVerdict : null
     }
   });
+  await logActivity(a, "ontwikkelaar", `Terugvoer-status → ${status}${reply ? ` · antwoord: “${reply.slice(0, 200)}”` : ""}`, { link: "/onderwyser/terugvoer" });
   revalidatePath("/onderwyser/terugvoer");
   revalidatePath("/onderwyser/my-terugvoer");
 }
@@ -276,6 +300,7 @@ export async function promoteFeedbackToEval(form: FormData) {
     expectedVerdict,
     notes: cleanText(form.get("devNote"), 2000)
   });
+  await logActivity(reviewer, "ontwikkelaar", `KI-toets gemaak uit terugvoer (verwag: ${expectedVerdict})`, { link: "/onderwyser/evaluasies" });
   revalidatePath("/onderwyser/terugvoer");
   revalidatePath("/onderwyser/evaluasies");
 }
@@ -296,7 +321,10 @@ export async function toggleEvalCase(form: FormData) {
   const reviewer = await requireFeedbackReviewer();
   const id = String(form.get("id"));
   const testCase = await db.aiEvalCase.findFirst({ where: { id, schoolId: reviewer.schoolId }, select: { active: true } });
-  if (testCase) await db.aiEvalCase.update({ where: { id }, data: { active: !testCase.active } });
+  if (testCase) {
+    await db.aiEvalCase.update({ where: { id }, data: { active: !testCase.active } });
+    await logActivity(reviewer, "ontwikkelaar", `KI-toets ${testCase.active ? "gedeaktiveer" : "geaktiveer"}`, { link: "/onderwyser/evaluasies" });
+  }
   revalidatePath("/onderwyser/evaluasies");
 }
 
@@ -311,6 +339,7 @@ export async function setAiReportStatus(form: FormData) {
     where: { id, schoolId: a.schoolId },
     data: { status, resolution: resolution || null, devNote: devNote || null, resolvedAt: status === "verwerk" ? new Date() : null }
   });
+  await logActivity(a, "ontwikkelaar", `KI-verslag-status → ${status}${resolution ? ` · “${resolution.slice(0, 200)}”` : ""}`, { link: "/onderwyser/terugvoer" });
   revalidatePath("/onderwyser/terugvoer");
 }
 

@@ -8,6 +8,7 @@ import { normaliseCode } from "@/lib/kodes";
 import { clearGroupSession, clearTeacherSession, setGroupSession, setTeacherSession } from "@/lib/sessie";
 import { allow } from "@/lib/tempo";
 import { verifyPassword } from "@/lib/wagwoord";
+import { logActivity } from "@/lib/aktiwiteit";
 
 export type FormState = { error?: string } | undefined;
 
@@ -42,6 +43,7 @@ export async function teacherLogin(_prev: FormState, form: FormData): Promise<Fo
   if (!t || !t.active || !(await verifyPassword(password, t.passwordHash))) return { error: "E-pos of wagwoord is nie korrek nie." };
   await db.teacher.update({ where: { id: t.id }, data: { lastLoginAt: new Date() } });
   await setTeacherSession(t.id);
+  await logActivity(t, "aanmeld", "Aangemeld");
   redirect("/onderwyser");
 }
 

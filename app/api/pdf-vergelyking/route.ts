@@ -6,6 +6,7 @@ import { runExtraction } from "@/lib/pdf-vergelyking/diens";
 import { pdfModel } from "@/lib/pdf-vergelyking/openai";
 import { currentTeacher } from "@/lib/sessie";
 import { allow } from "@/lib/tempo";
+import { logActivity } from "@/lib/aktiwiteit";
 
 const MAX_BYTES = 30 * 1024 * 1024;
 
@@ -37,6 +38,7 @@ export async function POST(req: Request) {
       data: { schoolId: t.schoolId, teacherId: t.id, teacherName: t.name, projectId: project.id, groupId: group?.id ?? null, model: pdfModel(form.get("kwaliteit") === "vinnig" ? "vinnig" : "beste"), templateKey: project.templateKey, fileName: name, pdf: buf },
       select: { id: true }
     });
+    await logActivity(t, "pdf", `PDF opgelaai: ${name} · ${project.title}`, { link: `/onderwyser/pdf-vergelyking/${c.id}` });
     after(() => runExtraction(c.id));
     return NextResponse.json({ id: c.id });
   });
