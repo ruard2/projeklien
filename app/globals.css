@@ -575,3 +575,13 @@ details > summary { cursor: pointer; font-weight: 600; }
 .pv-form .section { margin: 0; box-shadow: none; }
 .pv-form .section + .section { margin-top: 10px; }
 .pv-form .section > .body { padding: 12px; }
+.pv-chat-row td { background: #fbfaf7; }
+.pv-chat { display: grid; gap: 10px; padding: 6px 2px; }
+.pv-msgs { display: grid; gap: 8px; }
+.pv-msg { max-width: 92%; padding: 8px 12px; border-radius: 12px; font-size: .92rem; line-height: 1.45; white-space: pre-wrap; }
+.pv-msg small { display: block; font-size: .72rem; color: var(--muted); font-weight: 600; margin-bottom: 2px; }
+.pv-msg.juf { justify-self: end; background: var(--blue-soft); }
+.pv-msg.ki { justify-self: start; background: #fff; border: 1px solid var(--line); }
+.pv-rule { display: grid; gap: 8px; border: 1px dashed var(--ok); border-radius: var(--radius-sm); padding: 10px; background: #fff; }
+.linkbtn { background: none; border: 0; padding: 2px 0; color: var(--blue); font: inherit; font-size: .82rem; cursor: pointer; text-decoration: underline; }
+@media (max-width: 640px) { .pv-crit tr.pv-chat-row { display: block; } .pv-crit tr.pv-chat-row td { display: block; } }

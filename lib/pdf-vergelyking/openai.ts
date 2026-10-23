@@ -8,7 +8,7 @@ import type { Sheet, Template } from "../werkboeke/tipes";
 import { extractionSchema, layoutText } from "./skema";
 
 let client: OpenAI | null = null;
-function openai() {
+export function openai() {
   if (!client) client = new OpenAI({ apiKey: process.env.OPENAI_API_KEY, timeout: 10 * 60_000, maxRetries: 1 });
   return client;
 }
@@ -19,7 +19,7 @@ export function pdfModel(quality: "beste" | "vinnig" = "beste"): string {
   return process.env.OPENAI_PDF_MODEL || "gpt-5.4";
 }
 
-function reasoning(model: string) {
+export function reasoning(model: string) {
   return /^(gpt-5|o\d)/.test(model) ? { reasoning_effort: (process.env.OPENAI_REASONING_EFFORT || "medium") as "low" | "medium" | "high" } : {};
 }
 

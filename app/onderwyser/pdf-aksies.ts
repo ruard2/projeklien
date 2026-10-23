@@ -5,8 +5,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
-import { asExtracted, loadOwnComparison, runExtraction, runFeedback, STALE_MS } from "@/lib/pdf-vergelyking/diens";
-import { cleanSheetData } from "@/lib/pdf-vergelyking/skema";
+import { anonymisedSheetText, asExtracted, asResults, loadForFeedback, loadOwnComparison, rerunSheet, runExtraction, runFeedback, STALE_MS } from "@/lib/pdf-vergelyking/diens";
+import { chatAboutVerdict, type ChatMsg, type Omvang } from "@/lib/pdf-vergelyking/gesprek";
+import { rulesFor, RULE_MAX } from "@/lib/ki-reels";
+import { cleanSheetData, jufText, membersFrom } from "@/lib/pdf-vergelyking/skema";
 import { getTemplate } from "@/lib/werkboeke/sjablone";
 import { requireTeacher } from "@/lib/sessie";
 
@@ -81,5 +83,118 @@ export async function savePdfSheet(input: { id: string; sheet: string; data: unk
   } catch (e) {
     console.error(e);
     return { error: "Kon nie stoor nie." };
+  }
+}
+
+// ---------------------------------------------------------------- Duimpies, gesprek en reëls
+
+type VoteKey = { id: string; sheet: string; criterion: string };
+
+function voteWhere(comparisonId: string, sheet: string, criterionId: string, teacherId: string) {
+  return { comparisonId_sheet_criterionId_teacherId: { comparisonId, sheet, criterionId, teacherId } };
+}
+
+/** Duim op/af (nogmaals dieselfde = verwyder). */
+export async function setVote(k: VoteKey & { vote: 1 | -1 }): Promise<{ vote: number | null; error?: string }> {
+  const t = await requireTeacher();
+  try {
+    const c = await loadOwnComparison(k.id, t);
+    const where = voteWhere(c.id, k.sheet.slice(0, 40), k.criterion.slice(0, 60), t.id);
+    const existing = await db.pdfVote.findUnique({ where });
+    if (existing?.vote === k.vote && k.vote === 1) {
+      await db.pdfVote.delete({ where });
+      revalidatePath(path(c.id));
+      return { vote: null };
+    }
+    await db.pdfVote.upsert({ where, create: { comparisonId: c.id, sheet: k.sheet, criterionId: k.criterion, teacherId: t.id, vote: k.vote }, update: { vote: k.vote } });
+    revalidatePath(path(c.id));
+    return { vote: k.vote };
+  } catch (e) {
+    console.error(e);
+    return { vote: null, error: "Kon nie stoor nie." };
+  }
+}
+
+/** Die onderwyser praat met die KI oor ’n oordeel wat nie klop nie. */
+export async function chatVote(k: VoteKey & { text: string }): Promise<{ chat?: ChatMsg[]; reel?: string; omvang?: Omvang; error?: string }> {
+  const t = await requireTeacher();
+  const text = k.text.trim().slice(0, 2000);
+  if (!text) return { error: "Skryf eers wat nie klop nie." };
+  try {
+    const c = await loadOwnComparison(k.id, t);
+    const l = await loadForFeedback(c.id);
+    const r = asResults(c.results)[k.sheet];
+    const verdict = r?.result?.kriteria.find((x) => x.id === k.criterion);
+    if (!l || !verdict || !l.extracted.sheets[k.sheet]) return { error: "Hierdie oordeel bestaan nie meer nie." };
+    const sheet = l.template.sheets.find((s) => s.key === k.sheet)!;
+    const where = voteWhere(c.id, k.sheet, k.criterion, t.id);
+    const existing = await db.pdfVote.findUnique({ where });
+    const history = [...((existing?.chat as ChatMsg[] | null) ?? []), { van: "juf" as const, teks: text, at: new Date().toISOString() }].slice(-20);
+    const out = await chatAboutVerdict({
+      sheet,
+      criterion: sheet.criteria.find((x) => x.id === k.criterion),
+      criterionId: k.criterion,
+      verdict: verdict.oordeel,
+      feedback: verdict.terugvoer,
+      sheetText: anonymisedSheetText(l, k.sheet),
+      jufText: jufText(l.extracted.sheets[k.sheet], membersFrom(l.extracted)),
+      rules: await rulesFor(c.schoolId, c.templateKey, k.sheet),
+      history
+    });
+    const chat = [...history, { van: "ki" as const, teks: out.antwoord, at: new Date().toISOString() }];
+    await db.pdfVote.upsert({
+      where,
+      create: { comparisonId: c.id, sheet: k.sheet, criterionId: k.criterion, teacherId: t.id, vote: -1, reason: text, chat: chat as unknown as Prisma.InputJsonValue },
+      update: { vote: -1, reason: existing?.reason ?? text, chat: chat as unknown as Prisma.InputJsonValue }
+    });
+    return { chat, reel: out.reel, omvang: out.omvang };
+  } catch (e) {
+    console.error(e);
+    return { error: "Die KI kon nie antwoord nie. Probeer weer." };
+  }
+}
+
+/** Voeg ’n reël by wat dadelik vir alle KI-beoordelings van hierdie werkboek geld. */
+export async function addRuleFromVote(k: VoteKey & { text: string; omvang: Omvang }): Promise<{ ok?: true; error?: string }> {
+  const t = await requireTeacher();
+  const text = k.text.trim().slice(0, RULE_MAX);
+  if (text.length < 8) return { error: "Die reël is te kort." };
+  try {
+    const c = await loadOwnComparison(k.id, t);
+    const rule = await db.aiRule.create({
+      data: {
+        schoolId: c.schoolId,
+        templateKey: c.templateKey,
+        sheet: k.omvang === "werkboek" ? null : k.sheet,
+        criterionId: k.omvang === "kriterium" ? k.criterion : null,
+        text,
+        createdById: t.id,
+        createdByName: t.name,
+        sourceComparisonId: c.id
+      }
+    });
+    await db.pdfVote.updateMany({ where: { comparisonId: c.id, sheet: k.sheet, criterionId: k.criterion, teacherId: t.id }, data: { ruleId: rule.id } });
+    revalidatePath(path(c.id));
+    revalidatePath("/onderwyser/ki-reels");
+    return { ok: true };
+  } catch (e) {
+    console.error(e);
+    return { error: "Kon nie die reël stoor nie." };
+  }
+}
+
+/** Beoordeel een werkblad weer met die huidige reëls. */
+export async function rerunSheetAction(k: { id: string; sheet: string }): Promise<{ ok?: true; error?: string }> {
+  const t = await requireTeacher();
+  try {
+    const c = await loadOwnComparison(k.id, t);
+    const r = await rerunSheet(c.id, k.sheet);
+    if (!r) return { error: "Werkblad nie gevind nie." };
+    if (r.fout) return { error: r.fout };
+    revalidatePath(path(c.id));
+    return { ok: true };
+  } catch (e) {
+    console.error(e);
+    return { error: "Herbeoordeling het misluk." };
   }
 }

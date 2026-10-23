@@ -6,6 +6,7 @@ import { db } from "../db";
 import { DiensFout } from "../diens";
 import { aiConfigured, generateFeedback, isReady, type FeedbackResult } from "../ki";
 import { getTemplate } from "../werkboeke/sjablone";
+import { rulesFor } from "../ki-reels";
 import { sheetToText } from "../werkboeke/teks";
 import type { Template } from "../werkboeke/tipes";
 import { compareFeedback, extractPdf, type Vergelyking } from "./openai";
@@ -17,6 +18,7 @@ export type SheetResult = {
   result?: FeedbackResult;
   vergelyking?: Vergelyking;
   fout?: string;
+  herbeoordeel?: string;
 };
 export type Results = Record<string, SheetResult>;
 
@@ -75,50 +77,63 @@ function contextFor(template: Template, extracted: Extracted, members: string[],
 }
 
 
-export async function runFeedback(id: string) {
-  const c = await db.pdfComparison.findUnique({ where: { id }, include: { school: true } });
+type Loaded = NonNullable<Awaited<ReturnType<typeof loadForFeedback>>>;
+
+async function loadForFeedback(id: string) {
+  const c = await db.pdfComparison.findUnique({ where: { id } });
   const extracted = asExtracted(c?.extracted);
-  if (!c || !extracted) return;
+  if (!c || !extracted) return null;
   const template = getTemplate(c.templateKey);
   const project = await db.project.findUnique({ where: { id: c.projectId } });
-  const members = membersFrom(extracted);
+  return { c, extracted, template, project, members: membersFrom(extracted) };
+}
+
+/** Leerderteks van een werkblad soos die KI dit sien (geanonimiseer). */
+export function anonymisedSheetText(l: Loaded, key: string): string {
+  const sheet = l.template.sheets.find((s) => s.key === key)!;
+  return sheetToText(sheet, l.extracted.sheets[key].data, { members: l.members, anonymise: true, photoCounts: photoCountsFor(l.template, l.extracted, key) });
+}
+
+async function feedbackForSheet(l: Loaded, key: string): Promise<SheetResult> {
+  const { template, project, members, extracted } = l;
+  const sheet = template.sheets.find((s) => s.key === key)!;
+  const e = extracted.sheets[key];
+  try {
+    const out = await generateFeedback({
+      template,
+      sheet,
+      project: {
+        phenomenon: project?.phenomenon ?? template.defaults.phenomenon,
+        question: project?.question ?? template.defaults.question,
+        partner: project?.partner ?? template.defaults.partner,
+        grade: project?.grade ?? template.grade
+      },
+      sheetText: anonymisedSheetText(l, key),
+      contextTexts: contextFor(template, extracted, members, key),
+      teacherRules: await rulesFor(l.c.schoolId, l.c.templateKey, key)
+    });
+    const r: SheetResult = { gereed: isReady(sheet, out.result), source: out.source, result: out.result };
+    try {
+      r.vergelyking = await compareFeedback({ sheet, jufText: jufText(e, members), ai: out.result });
+    } catch (err) {
+      console.error("[pdf-vergelyking] vergelyk", err);
+    }
+    return r;
+  } catch (err) {
+    console.error("[pdf-vergelyking] terugvoer", err);
+    return { fout: err instanceof Error ? err.message.slice(0, 300) : "KI-terugvoer het misluk." };
+  }
+}
+
+export async function runFeedback(id: string) {
+  const l = await loadForFeedback(id);
+  if (!l) return;
   const results: Results = {};
-  const keys = extractableSheets(template).filter((s) => s.feedback && extracted.sheets[s.key]).map((s) => s.key);
-
+  const keys = extractableSheets(l.template).filter((s) => s.feedback && l.extracted.sheets[s.key]).map((s) => s.key);
   const save = () => db.pdfComparison.update({ where: { id }, data: { results: results as unknown as Prisma.InputJsonValue } });
-
   try {
     for (let i = 0; i < keys.length; i += 3) {
-      await Promise.all(
-        keys.slice(i, i + 3).map(async (key) => {
-          const sheet = template.sheets.find((s) => s.key === key)!;
-          const e = extracted.sheets[key];
-          try {
-            const out = await generateFeedback({
-              template,
-              sheet,
-              project: {
-                phenomenon: project?.phenomenon ?? template.defaults.phenomenon,
-                question: project?.question ?? template.defaults.question,
-                partner: project?.partner ?? template.defaults.partner,
-                grade: project?.grade ?? template.grade
-              },
-              sheetText: sheetToText(sheet, e.data, { members, anonymise: true, photoCounts: photoCountsFor(template, extracted, key) }),
-              contextTexts: contextFor(template, extracted, members, key)
-            });
-            const r: SheetResult = { gereed: isReady(sheet, out.result), source: out.source, result: out.result };
-            try {
-              r.vergelyking = await compareFeedback({ sheet, jufText: jufText(e, members), ai: out.result });
-            } catch (err) {
-              console.error("[pdf-vergelyking] vergelyk", err);
-            }
-            results[key] = r;
-          } catch (err) {
-            console.error("[pdf-vergelyking] terugvoer", err);
-            results[key] = { fout: err instanceof Error ? err.message.slice(0, 300) : "KI-terugvoer het misluk." };
-          }
-        })
-      );
+      await Promise.all(keys.slice(i, i + 3).map(async (key) => { results[key] = await feedbackForSheet(l, key); }));
       await save();
     }
     await db.pdfComparison.update({ where: { id }, data: { status: "klaar", error: null, results: results as unknown as Prisma.InputJsonValue } });
@@ -127,3 +142,16 @@ export async function runFeedback(id: string) {
     await db.pdfComparison.update({ where: { id }, data: { status: "fout", error: e instanceof Error ? e.message.slice(0, 500) : "KI-terugvoer het misluk." } });
   }
 }
+
+/** Beoordeel een werkblad weer (bv. nadat ’n onderwyser ’n reël bygevoeg het). */
+export async function rerunSheet(id: string, key: string): Promise<SheetResult | null> {
+  const l = await loadForFeedback(id);
+  if (!l || !l.extracted.sheets[key]) return null;
+  const r = await feedbackForSheet(l, key);
+  const fresh = await db.pdfComparison.findUnique({ where: { id }, select: { results: true } });
+  const results = { ...asResults(fresh?.results), [key]: { ...r, herbeoordeel: new Date().toISOString() } };
+  await db.pdfComparison.update({ where: { id }, data: { results: results as unknown as Prisma.InputJsonValue } });
+  return r;
+}
+
+export { loadForFeedback };

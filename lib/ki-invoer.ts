@@ -1,4 +1,5 @@
 import { db } from "./db";
+import { rulesFor } from "./ki-reels";
 import type { FeedbackInput } from "./ki";
 import { getSheet, getTemplate, parseSheetKey } from "./werkboeke/sjablone";
 import { sheetToText } from "./werkboeke/teks";
@@ -12,6 +13,7 @@ export type FeedbackInputSnapshot = {
   sheetText: string;
   contextTexts: FeedbackInput["contextTexts"];
   extraContext?: string;
+  teacherRules?: string[];
 };
 
 function asData(value: unknown): SheetData {
@@ -87,7 +89,8 @@ export async function buildFeedbackInput(groupId: string, sheetKey: string, revi
     },
     sheetText: sheetToText(sheet, data, { members, anonymise: true, photoCounts }),
     contextTexts,
-    extraContext
+    extraContext,
+    teacherRules: await rulesFor(group.project.schoolId, template.key, sheetKey)
   };
 }
 
@@ -99,7 +102,8 @@ export function snapshotFeedbackInput(input: FeedbackInput, sheetKey: string): F
     project: input.project,
     sheetText: input.sheetText,
     contextTexts: input.contextTexts,
-    ...(input.extraContext ? { extraContext: input.extraContext } : {})
+    ...(input.extraContext ? { extraContext: input.extraContext } : {}),
+    ...(input.teacherRules?.length ? { teacherRules: input.teacherRules } : {})
   };
 }
 
@@ -114,6 +118,7 @@ export function restoreFeedbackInput(snapshot: FeedbackInputSnapshot): FeedbackI
     project: snapshot.project,
     sheetText: snapshot.sheetText,
     contextTexts: snapshot.contextTexts,
-    extraContext: snapshot.extraContext
+    extraContext: snapshot.extraContext,
+    teacherRules: snapshot.teacherRules
   };
 }

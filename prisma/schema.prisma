@@ -23,6 +23,7 @@ model School {
   aiReports AiReport[]
   aiEvalCases AiEvalCase[]
   pdfComparisons PdfComparison[]
+  aiRules AiRule[]
 }
 
 enum TeacherRole {
@@ -333,8 +334,33 @@ model PdfVote {
   teacherId    String
   // 1 = duim op, -1 = duim af
   vote         Int
+  // By duim af: die onderwyser se rede en die gesprek met die KI ([{ van, teks, at }])
+  reason       String?
+  chat         Json?
+  ruleId       String?
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
 
   @@unique([comparisonId, sheet, criterionId, teacherId])
+}
+
+// Reëls wat onderwysers by die KI-terugvoer voeg (bv. uit ’n gesprek ná ’n duim af).
+// Aktiewe reëls gaan dadelik saam met elke KI-beoordeling van daardie werkboek/werkblad.
+model AiRule {
+  id                 String   @id @default(cuid())
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  schoolId           String
+  school             School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  templateKey        String
+  // null = geld vir die hele werkboek
+  sheet              String?
+  criterionId        String?
+  text               String
+  createdById        String
+  createdByName      String
+  active             Boolean  @default(true)
+  sourceComparisonId String?
+
+  @@index([schoolId, templateKey, active])
 }

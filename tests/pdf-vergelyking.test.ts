@@ -104,3 +104,12 @@ test("invoer-lêer word gevalideer en skoongemaak", async () => {
   assert.equal(items[0].extracted.sheets.ws1.juf.afgeteken, true);
   assert.throws(() => parseImport({ werkboeke: [{ werkboek: "bestaan-nie" }] }), /onbekende werkboek/);
 });
+
+test("onderwyserreëls gaan saam in die KI-opdrag", async () => {
+  const { userPrompt } = await import("../lib/ki");
+  const sheet = volGr9Haweloosheid.sheets.find((s) => s.key === "ws3")!;
+  const base = { template: volGr9Haweloosheid, sheet, project: { phenomenon: "H", question: "V", partner: null, grade: 9 }, sheetText: "x", contextTexts: [] };
+  assert.doesNotMatch(userPrompt(base), /ONDERWYSERREËLS/);
+  const withRules = userPrompt({ ...base, teacherRules: ["[kriterium “Wie sê dit is ’n behoefte?”] Aanvaar ook ’n artikel as bron."] });
+  assert.match(withRules, /ONDERWYSERREËLS[\s\S]*Aanvaar ook ’n artikel as bron\./);
+});

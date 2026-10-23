@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { approveExtraction, deleteComparison, retryComparison, voteCriterion } from "@/app/onderwyser/pdf-aksies";
+import { approveExtraction, deleteComparison, retryComparison } from "@/app/onderwyser/pdf-aksies";
+import PdfKriteriumRy from "@/components/PdfKriteriumRy";
+import { db } from "@/lib/db";
+import type { ChatMsg } from "@/lib/pdf-vergelyking/gesprek";
 import Herlaai from "@/components/Herlaai";
 import PdfWerkblad from "@/components/PdfWerkblad";
 import { asExtracted, asResults, loadOwnComparison, STALE_MS } from "@/lib/pdf-vergelyking/diens";
@@ -28,7 +31,11 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
   const st = STATUS_LABEL[c.status] ?? { text: c.status, cls: "plain" };
   const busy = c.status === "uitlees" || c.status === "ki";
   const stale = busy && Date.now() - c.updatedAt.getTime() > STALE_MS;
-  const myVotes = new Map(c.votes.filter((v) => v.teacherId === t.id).map((v) => [`${v.sheet}|${v.criterionId}`, v.vote]));
+  const mine = c.votes.filter((v) => v.teacherId === t.id);
+  const myVotes = new Map(mine.map((v) => [`${v.sheet}|${v.criterionId}`, v.vote]));
+  const myVoteRows = new Map(mine.map((v) => [`${v.sheet}|${v.criterionId}`, v]));
+  const ruleIds = mine.map((v) => v.ruleId).filter((x): x is string => Boolean(x));
+  const ruleTexts = new Map((ruleIds.length ? await db.aiRule.findMany({ where: { id: { in: ruleIds } }, select: { id: true, text: true } }) : []).map((r) => [r.id, r.text]));
 
   return (
     <div className="container">
@@ -125,6 +132,7 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
                   {up || down ? <span className="muted" style={{ fontSize: ".85rem", fontWeight: 500 }}>{up}👍 {down}👎</span> : null}
                 </summary>
                 <div className="body">
+                {r?.herbeoordeel ? <div className="alert info" style={{ fontSize: ".88rem", marginBottom: 10 }}>🔄 Weer beoordeel op {new Date(r.herbeoordeel).toLocaleString("af-ZA", { dateStyle: "medium", timeStyle: "short" })} met die huidige onderwyserreëls.</div> : null}
                 {!r ? <p className="muted" style={{ margin: 0 }}><span className="spinner dark" /> Word verwerk…</p> : r.fout ? <div className="alert err">{r.fout}</div> : (
                   <>
                     {v ? <p style={{ margin: "10px 0" }}>{v.opsomming}</p> : null}
@@ -153,23 +161,20 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
                       <tbody>
                         {r.result!.kriteria.map((k) => {
                           const crit = s.criteria.find((x) => x.id === k.id);
-                          const o = OORDEEL_LABEL[k.oordeel] ?? { text: k.oordeel, cls: "plain" };
-                          const mine = myVotes.get(`${s.key}|${k.id}`);
+                          const v = myVoteRows.get(`${s.key}|${k.id}`);
                           return (
-                            <tr key={k.id}>
-                              <td><b>{crit?.title ?? k.id}</b></td>
-                              <td><span className={`badge ${o.cls}`}>{o.text}</span></td>
-                              <td className="fb">{k.terugvoer}</td>
-                              <td className="votes">
-                                <form action={voteCriterion} style={{ display: "inline" }}>
-                                  <input type="hidden" name="id" value={c.id} />
-                                  <input type="hidden" name="sheet" value={s.key} />
-                                  <input type="hidden" name="criterion" value={k.id} />
-                                  <button className={`vote up ${mine === 1 ? "on" : ""}`} name="vote" value="1" aria-label="Duim op" aria-pressed={mine === 1}>👍</button>
-                                  <button className={`vote down ${mine === -1 ? "on" : ""}`} name="vote" value="-1" aria-label="Duim af" aria-pressed={mine === -1}>👎</button>
-                                </form>
-                              </td>
-                            </tr>
+                            <PdfKriteriumRy
+                              key={`${k.id}-${r.herbeoordeel ?? ""}`}
+                              comparisonId={c.id}
+                              sheet={s.key}
+                              criterionId={k.id}
+                              title={crit?.title ?? k.id}
+                              verdict={OORDEEL_LABEL[k.oordeel] ?? { text: k.oordeel, cls: "plain" }}
+                              feedback={k.terugvoer}
+                              vote={v?.vote ?? null}
+                              chat={(v?.chat as ChatMsg[] | null) ?? []}
+                              ruleText={v?.ruleId ? ruleTexts.get(v.ruleId) ?? null : null}
+                            />
                           );
                         })}
                       </tbody>
