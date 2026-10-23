@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createRule, deleteRule, toggleRule, updateRule } from "@/app/onderwyser/reel-aksies";
+import { createRule, deleteRule, restoreRule, revertRule, toggleRule, updateRule } from "@/app/onderwyser/reel-aksies";
 import { db } from "@/lib/db";
 import { isAdminRole, requireTeacher } from "@/lib/sessie";
 import { getTemplate, listTemplates } from "@/lib/werkboeke/sjablone";
@@ -11,7 +11,15 @@ export default async function KiReels({ searchParams }: { searchParams: Promise<
   const sp = await searchParams;
   const templates = listTemplates();
   const current = templates.find((x) => x.key === sp.werkboek) ?? templates[templates.length - 1];
-  const rules = await db.aiRule.findMany({ where: { schoolId: t.schoolId, templateKey: current.key }, orderBy: [{ active: "desc" }, { createdAt: "desc" }] });
+  const admin = isAdminRole(t.role);
+  const all = await db.aiRule.findMany({
+    where: { schoolId: t.schoolId, templateKey: current.key },
+    orderBy: [{ active: "desc" }, { createdAt: "desc" }],
+    include: { events: { orderBy: { at: "desc" } } }
+  });
+  const rules = all.filter((r) => !r.deletedAt);
+  const deleted = all.filter((r) => r.deletedAt && (admin || r.createdById === t.id));
+  const recent = admin ? await db.aiRuleEvent.findMany({ where: { schoolId: t.schoolId }, orderBy: { at: "desc" }, take: 60, include: { rule: { select: { templateKey: true, text: true } } } }) : [];
   const tpl = getTemplate(current.key);
   const scopeLabel = (sheetKey: string | null, criterionId: string | null) => {
     if (!sheetKey) return "Hele werkboek";
@@ -25,7 +33,7 @@ export default async function KiReels({ searchParams }: { searchParams: Promise<
     <div className="container">
       <h1>KI-reëls</h1>
       <p className="muted" style={{ maxWidth: "80ch" }}>
-        Reëls wat onderwysers by die KI-terugvoer gevoeg het, meestal uit ’n gesprek ná ’n 👎 by die PDF-vergelyking. Aktiewe reëls geld <b>dadelik</b> vir alle KI-terugvoer op hierdie werkboek, ook in die leerders se app.
+        Reëls wat onderwysers by die KI-terugvoer gevoeg het, meestal uit ’n gesprek ná ’n 👎 by die PDF-vergelyking. Aktiewe reëls geld <b>dadelik</b> vir alle KI-terugvoer op hierdie werkboek, ook in die leerders se app. Elke handeling word aangeteken en kan teruggedraai word; geskrapte reëls kan herstel word.
       </p>
       <div className="tabs">
         {templates.map((x) => (
@@ -74,18 +82,101 @@ export default async function KiReels({ searchParams }: { searchParams: Promise<
                     <div className="btn-row">
                       <button className="btn sm">Stoor wysiging</button>
                       <button className="btn sm" formAction={toggleRule}>{r.active ? "Skakel af" : "Skakel aan"}</button>
-                      <button className="btn sm danger" formAction={deleteRule}>Skrap</button>
+                      <button className="btn sm danger" formAction={deleteRule}>Skrap (kan herstel)</button>
                       {r.sourceComparisonId ? <Link className="btn sm ghost" href={`/onderwyser/pdf-vergelyking/${r.sourceComparisonId}`}>Bron</Link> : null}
                     </div>
                   </form>
                 ) : (
                   <p style={{ margin: "10px 0 0", whiteSpace: "pre-wrap" }}>{r.text}</p>
                 )}
+                <Geskiedenis events={r.events} ruleId={r.id} mayEdit={mayEdit} current={r.text} />
               </article>
             );
           })}
         </div>
       )}
+
+      {deleted.length ? (
+        <details className="pv-acc" style={{ marginTop: 18 }}>
+          <summary><span className="t">🗑 Geskrapte reëls ({deleted.length}) – kan herstel word</span></summary>
+          <div className="body" style={{ display: "grid", gap: 10 }}>
+            {deleted.map((r) => (
+              <div key={r.id} className="pv-box">
+                <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+                  <span className="badge plain blue">{scopeLabel(r.sheet, r.criterionId)}</span>
+                  <span className="grow" />
+                  <small className="muted">geskrap {r.deletedAt!.toLocaleString("af-ZA", { dateStyle: "medium", timeStyle: "short" })}</small>
+                </div>
+                <p style={{ margin: "8px 0", whiteSpace: "pre-wrap" }}>{r.text}</p>
+                <form action={restoreRule}><input type="hidden" name="id" value={r.id} /><button className="btn sm">Herstel</button></form>
+                <Geskiedenis events={r.events} ruleId={r.id} mayEdit={false} current={r.text} />
+              </div>
+            ))}
+          </div>
+        </details>
+      ) : null}
+
+      {admin ? (
+        <details className="pv-acc" style={{ marginTop: 18 }}>
+          <summary><span className="t">🕑 Ouditspoor: wie het wat gedoen (laaste {recent.length})</span></summary>
+          <div className="body" style={{ overflowX: "auto" }}>
+            {recent.length === 0 ? <p className="muted">Nog niks nie.</p> : (
+              <table className="dtable">
+                <thead><tr><th>Wanneer</th><th>Wie</th><th>Wat</th><th>Reël</th></tr></thead>
+                <tbody>
+                  {recent.map((e) => (
+                    <tr key={e.id}>
+                      <td style={{ whiteSpace: "nowrap" }}>{e.at.toLocaleString("af-ZA", { dateStyle: "short", timeStyle: "short" })}</td>
+                      <td>{e.byName}</td>
+                      <td><span className={`badge ${ACTION_CLS[e.action] ?? "plain"}`}>{e.action}</span></td>
+                      <td style={{ fontSize: ".88rem" }}>
+                        {e.newText ?? e.oldText ?? e.rule.text}
+                        {e.note ? <div className="muted">{e.note}</div> : null}
+                        <div className="muted">{getTemplate(e.rule.templateKey).label}</div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </details>
+      ) : null}
     </div>
+  );
+}
+
+const ACTION_CLS: Record<string, string> = { aangemaak: "ok", gewysig: "blue", teruggedraai: "blue", afgeskakel: "warn", aangeskakel: "ok", geskrap: "red", herstel: "ok" };
+
+function Geskiedenis({ events, ruleId, mayEdit, current }: { events: { id: string; at: Date; byName: string; action: string; oldText: string | null; newText: string | null; note: string | null }[]; ruleId: string; mayEdit: boolean; current: string }) {
+  if (!events.length) return null;
+  return (
+    <details style={{ marginTop: 10 }}>
+      <summary className="muted" style={{ fontSize: ".85rem" }}>Geskiedenis ({events.length})</summary>
+      <ul className="versions" style={{ marginTop: 8 }}>
+        {events.map((e) => {
+          const older = e.oldText && e.oldText !== current ? e.oldText : null;
+          return (
+            <li key={e.id} style={{ display: "block" }}>
+              <span className="muted">{e.at.toLocaleString("af-ZA", { dateStyle: "short", timeStyle: "short" })}</span> · <b>{e.action}</b> deur {e.byName}
+              {e.note ? <div className="muted" style={{ fontSize: ".85rem" }}>{e.note}</div> : null}
+              {e.action === "gewysig" || e.action === "teruggedraai" ? (
+                <div style={{ fontSize: ".85rem" }}>
+                  <div><s className="muted">{e.oldText}</s></div>
+                  <div>{e.newText}</div>
+                </div>
+              ) : null}
+              {mayEdit && older ? (
+                <form action={revertRule} style={{ marginTop: 4 }}>
+                  <input type="hidden" name="id" value={ruleId} />
+                  <input type="hidden" name="eventId" value={e.id} />
+                  <button className="btn sm ghost">↩ Draai terug na die ou teks</button>
+                </form>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </details>
   );
 }

@@ -361,6 +361,28 @@ model AiRule {
   createdByName      String
   active             Boolean  @default(true)
   sourceComparisonId String?
+  // Sagte skrap: kan herstel word; die geskiedenis bly altyd.
+  deletedAt          DateTime?
+  events             AiRuleEvent[]
 
   @@index([schoolId, templateKey, active])
+}
+
+// Ouditspoor: elke handeling op ’n reël (wie, wat, wanneer, ou/nuwe teks).
+model AiRuleEvent {
+  id       String   @id @default(cuid())
+  at       DateTime @default(now())
+  ruleId   String
+  rule     AiRule   @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  schoolId String
+  byId     String
+  byName   String
+  // "aangemaak" | "gewysig" | "afgeskakel" | "aangeskakel" | "geskrap" | "herstel" | "teruggedraai"
+  action   String
+  oldText  String?
+  newText  String?
+  note     String?
+
+  @@index([schoolId, at])
+  @@index([ruleId, at])
 }

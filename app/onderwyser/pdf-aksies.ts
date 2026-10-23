@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import type { Prisma } from "@prisma/client";
 import { anonymisedSheetText, asExtracted, asResults, loadForFeedback, loadOwnComparison, rerunSheet, runExtraction, runFeedback, STALE_MS } from "@/lib/pdf-vergelyking/diens";
 import { chatAboutVerdict, type ChatMsg, type Omvang } from "@/lib/pdf-vergelyking/gesprek";
-import { rulesFor, RULE_MAX } from "@/lib/ki-reels";
+import { logRuleEvent, rulesFor, RULE_MAX } from "@/lib/ki-reels";
 import { cleanSheetData, jufText, membersFrom } from "@/lib/pdf-vergelyking/skema";
 import { getTemplate } from "@/lib/werkboeke/sjablone";
 import { requireTeacher } from "@/lib/sessie";
@@ -173,6 +173,8 @@ export async function addRuleFromVote(k: VoteKey & { text: string; omvang: Omvan
         sourceComparisonId: c.id
       }
     });
+    const vote = await db.pdfVote.findUnique({ where: voteWhere(c.id, k.sheet, k.criterion, t.id) });
+    await logRuleEvent({ ruleId: rule.id, schoolId: c.schoolId, by: t, action: "aangemaak", newText: text, note: vote?.reason ? `Uit gesprek ná 👎: “${vote.reason}”` : null });
     await db.pdfVote.updateMany({ where: { comparisonId: c.id, sheet: k.sheet, criterionId: k.criterion, teacherId: t.id }, data: { ruleId: rule.id } });
     revalidatePath(path(c.id));
     revalidatePath("/onderwyser/ki-reels");

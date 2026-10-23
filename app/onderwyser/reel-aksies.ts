@@ -2,35 +2,61 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { RULE_MAX } from "@/lib/ki-reels";
+import { logRuleEvent, RULE_MAX } from "@/lib/ki-reels";
 import { isAdminRole, requireTeacher } from "@/lib/sessie";
 import { getTemplate } from "@/lib/werkboeke/sjablone";
+
+// Elke handeling word in AiRuleEvent aangeteken; niks word ooit hard geskrap nie.
 
 async function ownRule(id: string) {
   const t = await requireTeacher();
   const rule = await db.aiRule.findFirst({ where: { id, schoolId: t.schoolId } });
   if (!rule) throw new Error("Reël nie gevind nie.");
   if (rule.createdById !== t.id && !isAdminRole(t.role)) throw new Error("Net die skrywer of ’n administrateur kan hierdie reël verander.");
-  return rule;
+  return { t, rule };
 }
 
+const done = () => revalidatePath("/onderwyser/ki-reels");
+
 export async function toggleRule(form: FormData) {
-  const rule = await ownRule(String(form.get("id")));
+  const { t, rule } = await ownRule(String(form.get("id")));
   await db.aiRule.update({ where: { id: rule.id }, data: { active: !rule.active } });
-  revalidatePath("/onderwyser/ki-reels");
+  await logRuleEvent({ ruleId: rule.id, schoolId: rule.schoolId, by: t, action: rule.active ? "afgeskakel" : "aangeskakel" });
+  done();
 }
 
 export async function deleteRule(form: FormData) {
-  const rule = await ownRule(String(form.get("id")));
-  await db.aiRule.delete({ where: { id: rule.id } });
-  revalidatePath("/onderwyser/ki-reels");
+  const { t, rule } = await ownRule(String(form.get("id")));
+  await db.aiRule.update({ where: { id: rule.id }, data: { deletedAt: new Date() } });
+  await logRuleEvent({ ruleId: rule.id, schoolId: rule.schoolId, by: t, action: "geskrap", oldText: rule.text });
+  done();
+}
+
+export async function restoreRule(form: FormData) {
+  const { t, rule } = await ownRule(String(form.get("id")));
+  await db.aiRule.update({ where: { id: rule.id }, data: { deletedAt: null } });
+  await logRuleEvent({ ruleId: rule.id, schoolId: rule.schoolId, by: t, action: "herstel", newText: rule.text });
+  done();
 }
 
 export async function updateRule(form: FormData) {
-  const rule = await ownRule(String(form.get("id")));
+  const { t, rule } = await ownRule(String(form.get("id")));
   const text = String(form.get("text") ?? "").trim().slice(0, RULE_MAX);
-  if (text.length >= 8) await db.aiRule.update({ where: { id: rule.id }, data: { text } });
-  revalidatePath("/onderwyser/ki-reels");
+  if (text.length < 8 || text === rule.text) return done();
+  await db.aiRule.update({ where: { id: rule.id }, data: { text } });
+  await logRuleEvent({ ruleId: rule.id, schoolId: rule.schoolId, by: t, action: "gewysig", oldText: rule.text, newText: text });
+  done();
+}
+
+/** Draai ’n reël terug na die teks van ’n vroeëre gebeurtenis. */
+export async function revertRule(form: FormData) {
+  const { t, rule } = await ownRule(String(form.get("id")));
+  const ev = await db.aiRuleEvent.findFirst({ where: { id: String(form.get("eventId")), ruleId: rule.id } });
+  const text = ev?.oldText ?? ev?.newText;
+  if (!ev || !text || text === rule.text) return done();
+  await db.aiRule.update({ where: { id: rule.id }, data: { text } });
+  await logRuleEvent({ ruleId: rule.id, schoolId: rule.schoolId, by: t, action: "teruggedraai", oldText: rule.text, newText: text, note: `Na weergawe van ${ev.at.toLocaleString("af-ZA")}` });
+  done();
 }
 
 export async function createRule(form: FormData) {
@@ -42,7 +68,7 @@ export async function createRule(form: FormData) {
   const template = getTemplate(templateKey);
   const [sheetKey, criterionId] = scope.split("|");
   const sheet = sheetKey ? template.sheets.find((s) => s.key === sheetKey) : null;
-  await db.aiRule.create({
+  const rule = await db.aiRule.create({
     data: {
       schoolId: t.schoolId,
       templateKey: template.key,
@@ -53,5 +79,6 @@ export async function createRule(form: FormData) {
       createdByName: t.name
     }
   });
-  revalidatePath("/onderwyser/ki-reels");
+  await logRuleEvent({ ruleId: rule.id, schoolId: t.schoolId, by: t, action: "aangemaak", newText: text, note: "Handmatig op die KI-reëls-bladsy" });
+  done();
 }
