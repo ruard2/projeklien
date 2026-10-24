@@ -261,11 +261,14 @@ export async function makeGroupFromComparisonAction(form: FormData) {
 
 export async function makeAllGroupsAction() {
   const t = await requireTeacher();
-  const list = await db.pdfComparison.findMany({
-    where: { schoolId: t.schoolId, groupId: null, status: { in: ["nagaan", "ki", "klaar"] }, NOT: { extracted: { equals: Prisma.DbNull } }, ...(isAdminRole(t.role) ? {} : { teacherId: t.id }) },
-    select: { id: true },
-    orderBy: { createdAt: "asc" }
+  const { pickPaperCandidates } = await import("@/lib/pdf-vergelyking/papier");
+  const all = await db.pdfComparison.findMany({
+    where: { schoolId: t.schoolId, ...(isAdminRole(t.role) ? {} : { teacherId: t.id }) },
+    select: { id: true, templateKey: true, status: true, model: true, createdAt: true, groupId: true, extracted: true }
   });
+  const linked = all.map((c) => c.groupId).filter((x): x is string => Boolean(x));
+  const made = new Set((linked.length ? await db.group.findMany({ where: { id: { in: linked }, paperImport: true }, select: { id: true } }) : []).map((g) => g.id));
+  const list = pickPaperCandidates(all, made).picks.sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime());
   const runs: (() => Promise<void>)[] = [];
   for (const x of list) {
     try {

@@ -3,7 +3,7 @@ import PdfInvoer from "@/components/PdfInvoer";
 import VoorNa from "@/components/VoorNa";
 import Herlaai from "@/components/Herlaai";
 import { makeAllGroupsAction, rerunEverythingAction } from "@/app/onderwyser/pdf-aksies";
-import { paperGroupName } from "@/lib/pdf-vergelyking/papier";
+import { paperGroupName, pickPaperCandidates } from "@/lib/pdf-vergelyking/papier";
 import { asResults, beforeAfter } from "@/lib/pdf-vergelyking/diens";
 import PdfOplaai from "@/components/PdfOplaai";
 import { db } from "@/lib/db";
@@ -27,7 +27,7 @@ export default async function PdfVergelyking({ searchParams }: { searchParams: P
       where: { schoolId: t.schoolId, ...(t.role === "TEACHER" ? { teacherId: t.id } : {}) },
       orderBy: { createdAt: "desc" },
       take: 50,
-      select: { id: true, createdAt: true, fileName: true, status: true, templateKey: true, teacherName: true, extracted: true, results: true, groupId: true }
+      select: { id: true, createdAt: true, fileName: true, status: true, templateKey: true, teacherName: true, extracted: true, results: true, groupId: true, model: true }
     })
   ]);
   const linkedIds = items.map((c) => c.groupId).filter((x): x is string => Boolean(x));
@@ -38,7 +38,7 @@ export default async function PdfVergelyking({ searchParams }: { searchParams: P
         orderBy: { createdAt: "asc" }
       })
     : [];
-  const canMake = items.filter((c) => !c.groupId && c.extracted && ["nagaan", "ki", "klaar"].includes(c.status));
+  const { picks: canMake, duplicates } = pickPaperCandidates(items, new Set(paperGroups.map((g) => g.id)));
 
   return (
     <div className="container">
@@ -105,7 +105,7 @@ export default async function PdfVergelyking({ searchParams }: { searchParams: P
             Die leerders se papierwerk word hul groep se werk in die app. Werkblaaie wat op papier afgeteken is, tel as afgeteken (die volgende werkblad gaan oop), maar die groep mag dit nog verbeter. By elke werkblad sien hulle jou papierkommentaar en vars KI-terugvoer met al die reëls. Gee elke groep sy kode om mee aan te meld.
           </p>
           {canMake.length ? (
-            <p className="muted" style={{ fontSize: ".9rem" }}>Nog te maak: {canMake.map((c) => paperGroupName(c.extracted as never)).join(", ")}</p>
+            <p className="muted" style={{ fontSize: ".9rem" }}>Nog te maak: {canMake.map((c) => paperGroupName(c.extracted as never)).join(", ")}{duplicates ? ` · ${duplicates} dubbele oplaai(e) word oorgeslaan (die handmatige invoer of die nuutste weergawe word gebruik)` : ""}</p>
           ) : null}
           {paperGroups.some((g) => g._count.feedback < g._count.responses - 1) ? <Herlaai seconds={15} /> : null}
           {paperGroups.length ? (

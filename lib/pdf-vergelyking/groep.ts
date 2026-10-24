@@ -14,7 +14,7 @@ import { newGroupCode } from "../kodes";
 import { getTemplate } from "../werkboeke/sjablone";
 import { anonymisedSheetText, asExtracted, contextFor, loadForFeedback } from "./diens";
 import { extractableSheets, jufText, membersFrom } from "./skema";
-import { PAPER_NOTE, paperApprovedCheckpoints, paperGroupName } from "./papier";
+import { PAPER_NOTE, paperApprovedCheckpoints, paperGroupName, paperIdentity } from "./papier";
 
 type Teacher = { id: string; name: string; schoolId: string };
 
@@ -30,6 +30,15 @@ export async function createGroupFromComparison(comparisonId: string, teacher: T
     if (existing?.responses.some((r) => r.data && Object.keys(r.data as object).length)) {
       throw new DiensFout("Die gekoppelde groep het reeds werk in die app. Ontkoppel eers, of skep ’n nuwe groep.");
     }
+  }
+  const siblings = await db.pdfComparison.findMany({
+    where: { schoolId: teacher.schoolId, templateKey: c.templateKey, id: { not: c.id }, groupId: { not: null } },
+    select: { groupId: true, extracted: true }
+  });
+  const me = paperIdentity(c.templateKey, e);
+  const twin = siblings.find((x) => asExtracted(x.extracted) && paperIdentity(c.templateKey, asExtracted(x.extracted)!) === me);
+  if (twin?.groupId && (await db.group.count({ where: { id: twin.groupId, paperImport: true } }))) {
+    throw new DiensFout("Hierdie groep het reeds ’n digitale werkboek (uit ’n ander oplaai van dieselfde werkboek).");
   }
   const project = await db.project.findFirst({ where: { id: c.projectId, schoolId: teacher.schoolId } });
   if (!project) throw new DiensFout("Projek nie gevind nie.");

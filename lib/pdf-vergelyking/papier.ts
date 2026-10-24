@@ -30,3 +30,34 @@ export function paperApprovedCheckpoints(templateKey: string, e: Extracted): num
   return out;
 }
 
+
+/** Dieselfde groep (werkboek + lede se voorname), ongeag hoe dikwels dit opgelaai is. */
+export function paperIdentity(templateKey: string, e: Pick<Extracted, "lede">): string {
+  const firsts = e.lede.map((m) => m.trim().split(/\s+/)[0]?.toLowerCase().normalize("NFD").replace(/[^\p{L}]/gu, "") ?? "").filter(Boolean).sort();
+  return `${templateKey}|${firsts.join(",")}`;
+}
+
+export type PaperCandidate = { id: string; templateKey: string; status: string; model: string | null; createdAt: Date; groupId: string | null; extracted: unknown };
+
+/**
+ * Kies een vergelyking per groep om ’n digitale werkboek van te maak: die handmatig
+ * oorgeskrewe invoer wen, anders die nuutste. Groepe wat reeds ’n werkboek het, val weg.
+ */
+export function pickPaperCandidates(items: PaperCandidate[], madeIds: Set<string>) {
+  const usable = (c: PaperCandidate) => Boolean(c.extracted) && ["nagaan", "ki", "klaar"].includes(c.status);
+  const done = new Set(items.filter((c) => c.groupId && madeIds.has(c.groupId) && c.extracted).map((c) => paperIdentity(c.templateKey, c.extracted as Extracted)));
+  const best = new Map<string, PaperCandidate>();
+  let duplicates = 0;
+  for (const c of items) {
+    if (c.groupId || !usable(c)) continue;
+    const key = paperIdentity(c.templateKey, c.extracted as Extracted);
+    if (done.has(key)) { duplicates++; continue; }
+    const prev = best.get(key);
+    if (!prev) { best.set(key, c); continue; }
+    duplicates++;
+    const score = (x: PaperCandidate) => [x.model?.startsWith("handmatig") ? 1 : 0, x.createdAt.getTime()];
+    const [a1, a2] = score(c), [b1, b2] = score(prev);
+    if (a1 > b1 || (a1 === b1 && a2 > b2)) best.set(key, c);
+  }
+  return { picks: [...best.values()], duplicates };
+}
