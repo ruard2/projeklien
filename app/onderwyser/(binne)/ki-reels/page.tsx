@@ -31,7 +31,10 @@ export default async function KiReels({ searchParams }: { searchParams: Promise<
 
   return (
     <div className="container">
-      <h1>KI-reëls</h1>
+      <div className="row" style={{ gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
+        <h1 className="grow" style={{ margin: 0 }}>KI-reëls</h1>
+        {isAdminRole(t.role) ? <a className="btn sm" href="/api/oudit/uitvoer" download>⬇ Laai alles af (JSON)</a> : null}
+      </div>
       <p className="muted" style={{ maxWidth: "80ch" }}>
         Reëls wat onderwysers by die KI-terugvoer gevoeg het, meestal uit ’n gesprek ná ’n 👎 by die PDF-vergelyking. Aktiewe reëls geld <b>dadelik</b> vir alle KI-terugvoer op hierdie werkboek, ook in die leerders se app. Elke handeling word aangeteken en kan teruggedraai word; geskrapte reëls kan herstel word.
       </p>
