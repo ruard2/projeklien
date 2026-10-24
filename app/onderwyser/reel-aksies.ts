@@ -82,3 +82,45 @@ export async function createRule(form: FormData) {
   await logRuleEvent({ ruleId: rule.id, schoolId: t.schoolId, by: t, action: "aangemaak", newText: text, note: "Handmatig op die KI-reëls-bladsy" });
   done();
 }
+
+export type ImportState = { ok?: string; error?: string } | undefined;
+
+/** Voer ’n lys reëls in (JSON). Formaat: { werkboek, reels: [{ werkblad?, kriterium?, teks }] }. */
+export async function importRules(_prev: ImportState, form: FormData): Promise<ImportState> {
+  const t = await requireTeacher();
+  if (!isAdminRole(t.role)) return { error: "Net administrateurs." };
+  const file = form.get("file");
+  if (!(file instanceof Blob) || file.size === 0) return { error: "Kies ’n lêer." };
+  let raw: { werkboek?: string; reels?: { werkblad?: string; kriterium?: string; teks?: string }[] };
+  try {
+    raw = JSON.parse(await file.text());
+  } catch {
+    return { error: "Dit is nie ’n geldige JSON-lêer nie." };
+  }
+  let template;
+  try {
+    template = getTemplate(String(raw.werkboek ?? ""));
+  } catch {
+    return { error: `Onbekende werkboek “${raw.werkboek}”.` };
+  }
+  const list = Array.isArray(raw.reels) ? raw.reels.slice(0, 100) : [];
+  let made = 0;
+  const skipped: string[] = [];
+  for (const r of list) {
+    const text = String(r.teks ?? "").trim().slice(0, RULE_MAX);
+    const sheet = r.werkblad ? template.sheets.find((s) => s.key === r.werkblad) : null;
+    if (text.length < 8 || (r.werkblad && !sheet) || (r.kriterium && !sheet?.criteria.some((c) => c.id === r.kriterium))) {
+      skipped.push(`${r.werkblad ?? "-"}/${r.kriterium ?? "-"}`);
+      continue;
+    }
+    const exists = await db.aiRule.findFirst({ where: { schoolId: t.schoolId, templateKey: template.key, text, deletedAt: null } });
+    if (exists) continue;
+    const rule = await db.aiRule.create({
+      data: { schoolId: t.schoolId, templateKey: template.key, sheet: sheet?.key ?? null, criterionId: r.kriterium ?? null, text, createdById: t.id, createdByName: t.name }
+    });
+    await logRuleEvent({ ruleId: rule.id, schoolId: t.schoolId, by: t, action: "aangemaak", newText: text, note: `Ingevoer uit lêer (${file instanceof File ? file.name : "json"})` });
+    made++;
+  }
+  done();
+  return { ok: `${made} reël(s) bygevoeg${skipped.length ? `; ${skipped.length} oorgeslaan (onbekende werkblad/kriterium: ${skipped.join(", ")})` : ""}.` };
+}

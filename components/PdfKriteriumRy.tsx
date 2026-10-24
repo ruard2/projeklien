@@ -28,8 +28,9 @@ export default function PdfKriteriumRy(p: {
   const [open, setOpen] = useState(false);
   const [chat, setChat] = useState<ChatMsg[]>(p.chat);
   const [text, setText] = useState("");
-  const [rule, setRule] = useState("");
-  const [omvang, setOmvang] = useState<Omvang>("kriterium");
+  const lastProposal = [...p.chat].reverse().find((m) => m.van === "ki" && m.reel);
+  const [rule, setRule] = useState(p.ruleText ? "" : lastProposal?.reel ?? "");
+  const [omvang, setOmvang] = useState<Omvang>(lastProposal?.omvang ?? "kriterium");
   const [ruleAdded, setRuleAdded] = useState<string | null>(p.ruleText);
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
@@ -103,6 +104,7 @@ export default function PdfKriteriumRy(p: {
           {vote === -1 && !open ? (
             <div><button type="button" className="linkbtn" onClick={() => setOpen(true)}>{chat.length ? "gesprek" : "hoekom?"}</button></div>
           ) : null}
+          {vote === -1 && chat.length > 0 && !ruleAdded ? <div><span className="badge warn" style={{ fontSize: ".72rem" }}>reël nog nie bygevoeg</span></div> : null}
         </td>
       </tr>
       {open ? (
@@ -146,7 +148,7 @@ export default function PdfKriteriumRy(p: {
                     </select>
                     <button type="button" className="btn sm ok" onClick={addRule} disabled={pending || rule.trim().length < 8}>➕ Voeg reël by</button>
                   </div>
-                  <small className="muted">Die reël geld dadelik vir alle KI-terugvoer op hierdie werkboek – ook in die leerders se app. Jy kan dit later by “KI-reëls” afskakel.</small>
+                  <div className="alert warn" style={{ fontSize: ".85rem", padding: "8px 10px" }}>⚠ Die KI onthou niks uit hierdie gesprek nie. Eers as jy op <b>➕ Voeg reël by</b> druk, geld dit – dadelik vir alle KI-terugvoer op hierdie werkboek, ook in die leerders se app. Jy kan dit later by “KI-reëls” afskakel.</div>
                 </div>
               ) : null}
 

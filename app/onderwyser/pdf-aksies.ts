@@ -151,7 +151,7 @@ export async function chatVote(k: VoteKey & { text: string }): Promise<{ chat?: 
       rules: await rulesFor(c.schoolId, c.templateKey, k.sheet),
       history
     });
-    const chat = [...history, { van: "ki" as const, teks: out.antwoord, at: new Date().toISOString() }];
+    const chat: ChatMsg[] = [...history, { van: "ki" as const, teks: out.antwoord, at: new Date().toISOString(), ...(out.reel ? { reel: out.reel, omvang: out.omvang } : {}) }];
     await logActivity(t, "duim", `Gesprek met KI (werkblad ${k.sheet}, kriterium ${k.criterion}): “${text.slice(0, 300)}”`, { link: path(c.id), details: { kind: "gesprek", juf: text, ki: out.antwoord, reel: out.reel } });
     await db.pdfVote.upsert({
       where,

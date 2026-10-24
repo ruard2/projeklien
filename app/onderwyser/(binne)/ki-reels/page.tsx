@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { createRule, deleteRule, restoreRule, revertRule, toggleRule, updateRule } from "@/app/onderwyser/reel-aksies";
+import ReelInvoer from "@/components/ReelInvoer";
 import { db } from "@/lib/db";
 import { isAdminRole, requireTeacher } from "@/lib/sessie";
 import { getTemplate, listTemplates } from "@/lib/werkboeke/sjablone";
@@ -63,6 +64,13 @@ export default async function KiReels({ searchParams }: { searchParams: Promise<
           </form>
         </div>
       </details>
+
+      {isAdminRole(t.role) ? (
+        <details className="pv-acc" style={{ marginBottom: 18 }}>
+          <summary><span className="t">📥 Voer reëls in (JSON-lêer)</span></summary>
+          <div className="body"><ReelInvoer /></div>
+        </details>
+      ) : null}
 
       {rules.length === 0 ? (
         <div className="card empty">Nog geen reëls vir hierdie werkboek nie.</div>

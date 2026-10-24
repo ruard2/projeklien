@@ -2,7 +2,9 @@ import Link from "next/link";
 import { markAllRuleEventsReviewed, markRuleEventReviewed, rejectRuleEvent } from "@/app/onderwyser/oudit-aksies";
 import { ACTIVITY_LABEL } from "@/lib/aktiwiteit";
 import { buildTimeline, teacherSummaries, type Item } from "@/lib/aktiwiteit-oorsig";
+import { Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
+import type { ChatMsg } from "@/lib/pdf-vergelyking/gesprek";
 import { requireAdmin } from "@/lib/sessie";
 import { getTemplate } from "@/lib/werkboeke/sjablone";
 import { sheetToText } from "@/lib/werkboeke/teks";
@@ -33,6 +35,12 @@ export default async function Aktiwiteit({ searchParams }: { searchParams: Promi
   const since = period.days ? new Date(Date.now() - period.days * 86400_000) : undefined;
   const base = { wie: sp.wie, tipe: sp.tipe, tyd: sp.tyd };
 
+  const pendingChats = await db.pdfVote.findMany({
+    where: { vote: -1, ruleId: null, NOT: { chat: { equals: Prisma.DbNull } }, comparison: { schoolId: a.schoolId }, ...(sp.wie ? { teacherId: sp.wie } : {}) },
+    orderBy: { updatedAt: "desc" },
+    take: 100,
+    include: { comparison: { select: { fileName: true, templateKey: true } } }
+  });
   const [summaries, { items, teachers, logStart }, openEvents] = await Promise.all([
     teacherSummaries(a.schoolId, since ?? new Date(0)),
     buildTimeline(a.schoolId, { teacherId: sp.wie, since, type: sp.tipe }),
@@ -114,6 +122,38 @@ export default async function Aktiwiteit({ searchParams }: { searchParams: Promi
           </div>
         )}
       </div>
+
+      {/* ---------------- Gesprekke wat nog nie ’n reël geword het nie */}
+      {pendingChats.length ? (
+        <details className="pv-acc" style={{ margin: "18px 0", borderLeft: "4px solid var(--warn)" }}>
+          <summary><span className="t">💬 Gesprekke ná 👎 sonder reël ({pendingChats.length}) – die KI onthou dit nie</span></summary>
+          <div className="body" style={{ display: "grid", gap: 10 }}>
+            <p className="muted" style={{ margin: 0, fontSize: ".9rem" }}>Hier het ’n onderwyser met die KI gepraat, maar nie op “Voeg reël by” gedruk nie. Die KI se gedrag het dus nie verander nie.</p>
+            {pendingChats.map((v) => {
+              const chat = (v.chat as ChatMsg[] | null) ?? [];
+              const proposal = [...chat].reverse().find((m) => m.van === "ki" && m.reel)?.reel;
+              let where = `${v.sheet} · ${v.criterionId}`;
+              try {
+                const s2 = getTemplate(v.comparison.templateKey).sheets.find((x) => x.key === v.sheet);
+                const c2 = s2?.criteria.find((x) => x.id === v.criterionId);
+                where = `WB${s2?.number} · ${c2?.title ?? v.criterionId}`;
+              } catch {}
+              return (
+                <div key={v.id} className="pv-box">
+                  <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+                    <b>{teachers.find((x) => x.id === v.teacherId)?.name ?? "?"}</b>
+                    <span className="badge plain blue">{where}</span>
+                    <span className="muted">{fmt(v.updatedAt)}</span>
+                  </div>
+                  {v.reason ? <p style={{ margin: "6px 0 0" }}>“{v.reason}”</p> : null}
+                  {proposal ? <p className="muted" style={{ margin: "6px 0 0", fontSize: ".9rem" }}>Laaste voorstel van die KI: {proposal}</p> : null}
+                  <Link className="btn sm" style={{ marginTop: 8 }} href={`/onderwyser/pdf-vergelyking/${v.comparisonId}`}>Open en voeg reël by</Link>
+                </div>
+              );
+            })}
+          </div>
+        </details>
+      ) : null}
 
       {/* ---------------- Tydlyn */}
       <div className="card">
