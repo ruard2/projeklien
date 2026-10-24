@@ -87,6 +87,7 @@ export default async function WerkbladBladsy({ params }: { params: Promise<{ sle
     };
   }
 
+  const paperNote = ((response?.teacherNotes ?? {}) as Record<string, { text?: string }>)._papier?.text ?? null;
   const status = response?.status === "READY" && response.readyHash !== currentHash ? "NOT_READY" : (response?.status ?? "NOT_STARTED");
 
   return (
@@ -119,6 +120,14 @@ export default async function WerkbladBladsy({ params }: { params: Promise<{ sle
           </div>
         </div>
       </div>
+
+      {paperNote ? (
+        <div className="card no-print" style={{ borderLeft: "4px solid #c0392b", marginBottom: 16 }}>
+          <h3 style={{ marginTop: 0 }}>✍️ Juf se kommentaar (papierwerkboek)</h3>
+          <p className="muted" style={{ marginTop: 0, fontSize: ".9rem" }}>Dit het jul onderwyser op papier geskryf. Lees ook die KI-terugvoer hieronder en verbeter julle werk waar nodig.</p>
+          <div style={{ whiteSpace: "pre-wrap" }}>{paperNote}</div>
+        </div>
+      ) : null}
 
       <WerkbladRedigeerder
         key={sheetKey}

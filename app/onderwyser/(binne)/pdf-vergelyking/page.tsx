@@ -2,7 +2,8 @@ import Link from "next/link";
 import PdfInvoer from "@/components/PdfInvoer";
 import VoorNa from "@/components/VoorNa";
 import Herlaai from "@/components/Herlaai";
-import { rerunEverythingAction } from "@/app/onderwyser/pdf-aksies";
+import { makeAllGroupsAction, rerunEverythingAction } from "@/app/onderwyser/pdf-aksies";
+import { paperGroupName } from "@/lib/pdf-vergelyking/papier";
 import { asResults, beforeAfter } from "@/lib/pdf-vergelyking/diens";
 import PdfOplaai from "@/components/PdfOplaai";
 import { db } from "@/lib/db";
@@ -26,9 +27,18 @@ export default async function PdfVergelyking({ searchParams }: { searchParams: P
       where: { schoolId: t.schoolId, ...(t.role === "TEACHER" ? { teacherId: t.id } : {}) },
       orderBy: { createdAt: "desc" },
       take: 50,
-      select: { id: true, createdAt: true, fileName: true, status: true, templateKey: true, teacherName: true, extracted: true, results: true }
+      select: { id: true, createdAt: true, fileName: true, status: true, templateKey: true, teacherName: true, extracted: true, results: true, groupId: true }
     })
   ]);
+  const linkedIds = items.map((c) => c.groupId).filter((x): x is string => Boolean(x));
+  const paperGroups = linkedIds.length
+    ? await db.group.findMany({
+        where: { id: { in: linkedIds }, paperImport: true },
+        select: { id: true, code: true, name: true, klas: true, members: true, _count: { select: { feedback: true, responses: true } } },
+        orderBy: { createdAt: "asc" }
+      })
+    : [];
+  const canMake = items.filter((c) => !c.groupId && c.extracted && ["nagaan", "ki", "klaar"].includes(c.status));
 
   return (
     <div className="container">
@@ -79,6 +89,49 @@ export default async function PdfVergelyking({ searchParams }: { searchParams: P
           </div>
         );
       })()}
+
+
+      {paperGroups.length || canMake.length ? (
+        <div className="card" id="digitaal" style={{ marginTop: 18 }}>
+          <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
+            <h2 className="grow" style={{ margin: 0 }}>📱 Digitale werkboeke vir die leerders</h2>
+            {canMake.length ? (
+              <form action={makeAllGroupsAction}>
+                <button className="btn sm">Maak {canMake.length} digitale werkboek(e)</button>
+              </form>
+            ) : null}
+          </div>
+          <p className="muted">
+            Die leerders se papierwerk word hul groep se werk in die app. Werkblaaie wat op papier afgeteken is, tel as afgeteken (die volgende werkblad gaan oop), maar die groep mag dit nog verbeter. By elke werkblad sien hulle jou papierkommentaar en vars KI-terugvoer met al die reëls. Gee elke groep sy kode om mee aan te meld.
+          </p>
+          {canMake.length ? (
+            <p className="muted" style={{ fontSize: ".9rem" }}>Nog te maak: {canMake.map((c) => paperGroupName(c.extracted as never)).join(", ")}</p>
+          ) : null}
+          {paperGroups.some((g) => g._count.feedback < g._count.responses - 1) ? <Herlaai seconds={15} /> : null}
+          {paperGroups.length ? (
+            <div style={{ overflowX: "auto" }}>
+              <table className="dtable">
+                <thead><tr><th>Groep</th><th>Klas</th><th>Lede</th><th>Kode</th><th>KI-terugvoer</th></tr></thead>
+                <tbody>
+                  {paperGroups.map((g) => {
+                    const total = g._count.responses - 1;
+                    const done = g._count.feedback;
+                    return (
+                      <tr key={g.id}>
+                        <td><Link href={`/onderwyser/groep/${g.id}`}>{g.name}</Link></td>
+                        <td>{g.klas ?? "—"}</td>
+                        <td><small>{(Array.isArray(g.members) ? (g.members as string[]) : []).filter(Boolean).join(", ")}</small></td>
+                        <td><code style={{ fontSize: "1rem", fontWeight: 700 }}>{g.code}</code></td>
+                        <td>{done >= total ? "✓ klaar" : <><span className="spinner dark" /> {done}/{total}</>}</td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       <div className="card" style={{ marginTop: 18 }}>
         <h2>Vorige oplaaie</h2>

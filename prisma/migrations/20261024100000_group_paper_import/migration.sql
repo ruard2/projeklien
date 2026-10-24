@@ -1,0 +1,1 @@
+ALTER TABLE "Group" ADD COLUMN "paperImport" BOOLEAN NOT NULL DEFAULT false;

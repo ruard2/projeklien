@@ -12,7 +12,7 @@ const PHASE_OF_CP: Record<number, string> = { 1: "f1", 2: "f2", 3: "f3", 4: "f4"
 export default async function GroepTuis() {
   const g = await requireGroup();
   const { group, template: t, members } = await loadWorkbook(g.id);
-  const { checkpoints, approved, current } = workbookOverview(t, group.responses, group.checkpoints);
+  const { checkpoints, approved, current } = workbookOverview(t, group.responses, group.checkpoints, group.paperImport);
   const coverDone = Boolean(group.name && members[0]);
   const nextSheet = current?.sheets.find((s) => !s.ready) ?? current?.sheets[0];
   const personal = t.sheets.find((s) => s.perMember);
@@ -55,6 +55,12 @@ export default async function GroepTuis() {
           ) : null}
         </div>
       </div>
+
+      {group.paperImport ? (
+        <div className="alert info" style={{ marginTop: 16 }}>
+          📄 Julle papierwerkboek (tot by die laaste afgetekende werkblad) is ingelees. Maak elke werkblad oop om jul juf se kommentaar en die KI-terugvoer te lees; julle mag dit nog verbeter. Gaan dan verder met die volgende werkblad.
+        </div>
+      ) : null}
 
       <div className="layout-2">
         <div>

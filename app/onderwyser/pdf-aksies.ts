@@ -240,3 +240,42 @@ export async function rerunEverythingAction() {
   revalidatePath("/onderwyser/pdf-vergelyking");
   redirect("/onderwyser/pdf-vergelyking");
 }
+
+// ---------------------------------------------------------------- Papier → digitale werkboek
+
+async function makeGroup(t: Awaited<ReturnType<typeof requireTeacher>>, id: string) {
+  const { createGroupFromComparison, feedbackForPaperGroup } = await import("@/lib/pdf-vergelyking/groep");
+  const { group, approved } = await createGroupFromComparison(id, t);
+  await logActivity(t, "groepe", `Digitale werkboek uit papier gemaak · ${group.name} (${group.code})${approved.length ? ` · KP ${approved.join(", ")} afgeteken` : ""}`, { link: `/onderwyser/groep/${group.id}` });
+  return { group, run: () => feedbackForPaperGroup(id, group.id) };
+}
+
+export async function makeGroupFromComparisonAction(form: FormData) {
+  const t = await requireTeacher();
+  const c = await loadOwnComparison(String(form.get("id")), t);
+  const { run } = await makeGroup(t, c.id);
+  after(run);
+  revalidatePath("/onderwyser/pdf-vergelyking");
+  redirect(path(c.id));
+}
+
+export async function makeAllGroupsAction() {
+  const t = await requireTeacher();
+  const list = await db.pdfComparison.findMany({
+    where: { schoolId: t.schoolId, groupId: null, status: { in: ["nagaan", "ki", "klaar"] }, NOT: { extracted: { equals: Prisma.DbNull } }, ...(isAdminRole(t.role) ? {} : { teacherId: t.id }) },
+    select: { id: true },
+    orderBy: { createdAt: "asc" }
+  });
+  const runs: (() => Promise<void>)[] = [];
+  for (const x of list) {
+    try {
+      runs.push((await makeGroup(t, x.id)).run);
+    } catch (e) {
+      console.error("[papiergroep]", x.id, e);
+    }
+  }
+  if (runs.length) after(async () => { for (const r of runs) await r(); });
+  revalidatePath("/onderwyser/pdf-vergelyking");
+  revalidatePath("/onderwyser");
+  redirect("/onderwyser/pdf-vergelyking#digitaal");
+}

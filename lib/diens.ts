@@ -57,7 +57,7 @@ function asData(v: unknown): SheetData {
 export async function getSheetState(groupId: string, sheetKey: string) {
   const { group, template, members } = await loadWorkbook(groupId);
   const sheet = resolveSheet(template, sheetKey);
-  const access = sheetAccess(sheet, cpStates(group.checkpoints));
+  const access = sheetAccess(sheet, cpStates(group.checkpoints), { paperImport: group.paperImport });
   const response = group.responses.find((r) => r.sheet === sheetKey) ?? null;
   return { group, template, members, sheet, access, response };
 }

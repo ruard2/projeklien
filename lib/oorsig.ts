@@ -34,7 +34,7 @@ function asData(v: unknown): SheetData {
   return v && typeof v === "object" && !Array.isArray(v) ? (v as SheetData) : {};
 }
 
-export function sheetOverview(sheet: Sheet, key: string, responses: Response[], cps: Checkpoint[]): SheetOverview {
+export function sheetOverview(sheet: Sheet, key: string, responses: Response[], cps: Checkpoint[], paperImport = false): SheetOverview {
   const r = responses.find((x) => x.sheet === key);
   const data = asData(r?.data);
   const status = r?.status ?? "NOT_STARTED";
@@ -44,12 +44,12 @@ export function sheetOverview(sheet: Sheet, key: string, responses: Response[], 
     status,
     ready: status === "READY" && r?.readyHash === dataHash(data),
     progress: completion(sheet, data),
-    access: sheetAccess(sheet, cpStates(cps)),
+    access: sheetAccess(sheet, cpStates(cps), { paperImport }),
     updatedAt: r?.updatedAt ?? null
   };
 }
 
-export function workbookOverview(t: Template, responses: Response[], cps: Checkpoint[]) {
+export function workbookOverview(t: Template, responses: Response[], cps: Checkpoint[], paperImport = false) {
   const states = cpStates(cps);
   const sheetStates = sheetStatesFor(t, responses);
   const checkpoints: CheckpointOverview[] = t.checkpoints.map((def) => {
@@ -60,7 +60,7 @@ export function workbookOverview(t: Template, responses: Response[], cps: Checkp
       statement: def.statement,
       status: cpStatus(states, def.number),
       record: cps.find((c) => c.number === def.number) ?? null,
-      sheets: def.sheets.map((k) => sheetOverview(t.sheets.find((s) => s.key === k)!, k, responses, cps)),
+      sheets: def.sheets.map((k) => sheetOverview(t.sheets.find((s) => s.key === k)!, k, responses, cps, paperImport)),
       canSubmit: check.ok,
       reason: check.reason,
       unlocked: def.number === 1 || cpStatus(states, def.number - 1) === "APPROVED"

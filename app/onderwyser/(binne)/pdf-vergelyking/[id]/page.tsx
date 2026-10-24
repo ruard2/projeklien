@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { approveExtraction, deleteComparison, rerunAllAction, retryComparison } from "@/app/onderwyser/pdf-aksies";
+import { approveExtraction, deleteComparison, makeGroupFromComparisonAction, rerunAllAction, retryComparison } from "@/app/onderwyser/pdf-aksies";
 import PdfKriteriumRy from "@/components/PdfKriteriumRy";
 import { db } from "@/lib/db";
 import type { ChatMsg } from "@/lib/pdf-vergelyking/gesprek";
@@ -36,6 +36,7 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
   const mine = c.votes.filter((v) => v.teacherId === t.id);
   const myVotes = new Map(mine.map((v) => [`${v.sheet}|${v.criterionId}`, v.vote]));
   const myVoteRows = new Map(mine.map((v) => [`${v.sheet}|${v.criterionId}`, v]));
+  const paperGroup = c.groupId ? await db.group.findFirst({ where: { id: c.groupId, paperImport: true }, select: { name: true, code: true } }) : null;
   const ruleIds = mine.map((v) => v.ruleId).filter((x): x is string => Boolean(x));
   const ruleTexts = new Map((ruleIds.length ? await db.aiRule.findMany({ where: { id: { in: ruleIds } }, select: { id: true, text: true } }) : []).map((r) => [r.id, r.text]));
 
@@ -46,6 +47,15 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
         <Link href="/onderwyser/pdf-vergelyking">← Alle oplaaie</Link>
         {c.groupId ? <> · <Link href={`/onderwyser/groep/${c.groupId}`}>Groep in die app</Link></> : null}
       </p>
+      {paperGroup ? (
+        <div className="alert info">📱 Digitale werkboek gemaak: <strong>{paperGroup.name}</strong> · kode <code style={{ fontWeight: 700 }}>{paperGroup.code}</code>. Die leerders kan hiermee aanmeld en verder werk.</div>
+      ) : extracted && !c.groupId && ["nagaan", "ki", "klaar"].includes(c.status) ? (
+        <form action={makeGroupFromComparisonAction} className="card" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          <input type="hidden" name="id" value={c.id} />
+          <span className="grow">Maak hiervan ’n digitale werkboek sodat die groep in die app verder kan werk (met jou papierkommentaar en vars KI-terugvoer).</span>
+          <button className="btn sm">📱 Maak digitale werkboek</button>
+        </form>
+      ) : null}
       <div className="row" style={{ gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
         <h1 className="grow" style={{ margin: 0 }}>{template.label}</h1>
         <span className={`badge ${st.cls}`}>{st.text}</span>

@@ -66,7 +66,7 @@ export async function runExtraction(id: string) {
 
 // ---------------------------------------------------------------- 2. KI-terugvoer + vergelyking
 
-function contextFor(template: Template, extracted: Extracted, members: string[], sheetKey: string) {
+export function contextFor(template: Template, extracted: Extracted, members: string[], sheetKey: string) {
   const sheet = template.sheets.find((s) => s.key === sheetKey)!;
   return (sheet.context ?? [])
     .map((k) => {

@@ -20,7 +20,7 @@ export default async function OnderwyserGroep({ params }: { params: Promise<{ id
   if (!exists) notFound();
 
   const { group, template: tpl, members } = await loadWorkbook(id);
-  const { checkpoints, approved } = workbookOverview(tpl, group.responses, group.checkpoints);
+  const { checkpoints, approved } = workbookOverview(tpl, group.responses, group.checkpoints, group.paperImport);
   const feedback = await db.feedback.findMany({
     where: { groupId: id },
     select: { sheet: true, ready: true, result: true, createdAt: true, source: true },

@@ -15,7 +15,7 @@ import { parseSheetKey } from "@/lib/werkboeke/sjablone";
 import { cpStatus } from "@/lib/werkboeke/toegang";
 import type { SheetData } from "@/lib/werkboeke/tipes";
 
-const REASON: Record<string, string> = { outostoor: "Outomaties gestoor", terugvoer: "Terugvoer gevra", ingedien: "Ingedien", goedgekeur: "Goedgekeur" };
+const REASON: Record<string, string> = { outostoor: "Outomaties gestoor", terugvoer: "Terugvoer gevra", ingedien: "Ingedien", goedgekeur: "Goedgekeur", papier: "Ingelees uit papierwerkboek" };
 
 export default async function OnderwyserWerkblad({
   params,
@@ -88,6 +88,12 @@ export default async function OnderwyserWerkblad({
               <Link className="btn sm" href={base} style={{ marginLeft: "auto" }}>
                 Wys huidige
               </Link>
+            </div>
+          ) : null}
+          {(notes as Record<string, { text?: string }>)._papier?.text ? (
+            <div className="card" style={{ borderLeft: "4px solid #c0392b", marginBottom: 14 }}>
+              <h3 style={{ marginTop: 0 }}>✍️ Papierkommentaar (soos die groep dit sien)</h3>
+              <div style={{ whiteSpace: "pre-wrap" }}>{(notes as Record<string, { text?: string }>)._papier?.text}</div>
             </div>
           ) : null}
           <WerkbladVorm sheet={sheet} sheetKey={sheetKey} data={data} readOnly members={members} photos={photos} teacherNotes={notes} />

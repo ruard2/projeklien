@@ -77,6 +77,8 @@ model Group {
   // Voorname van lede (maks 4). Word NOOIT na die KI gestuur nie.
   members     Json                @default("[]")
   archived    Boolean             @default(false)
+  // Ingelees uit ’n papierwerkboek: afgetekende werkblaaie bly bewerkbaar.
+  paperImport Boolean             @default(false)
   createdAt   DateTime            @default(now())
   lastSeenAt  DateTime?
   responses   Response[]
