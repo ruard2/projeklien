@@ -585,3 +585,11 @@ details > summary { cursor: pointer; font-weight: 600; }
 .pv-rule { display: grid; gap: 8px; border: 1px dashed var(--ok); border-radius: var(--radius-sm); padding: 10px; background: #fff; }
 .linkbtn { background: none; border: 0; padding: 2px 0; color: var(--blue); font: inherit; font-size: .82rem; cursor: pointer; text-decoration: underline; }
 @media (max-width: 640px) { .pv-crit tr.pv-chat-row { display: block; } .pv-crit tr.pv-chat-row td { display: block; } }
+.tm-panel .tm-h { font-size: .7rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 10px 12px 2px; }
+.tm-panel .tm-dev { color: var(--muted) !important; font-size: .88rem !important; }
+.dev-banner { border: 1px dashed var(--line); background: var(--paper-2); border-radius: var(--radius-sm); padding: 10px 14px; font-size: .9rem; color: var(--muted); margin-bottom: 18px; }
+.hub { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); margin-bottom: 22px; }
+.hub a { display: block; padding: 14px 16px; border: 1px solid var(--line); border-radius: var(--radius-sm); background: #fff; color: var(--ink); text-decoration: none; }
+.hub a:hover { border-color: var(--blue); }
+.hub a b { display: block; margin-bottom: 4px; }
+.hub a span { font-size: .86rem; color: var(--muted); }

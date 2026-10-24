@@ -53,7 +53,6 @@ export default async function Aktiwiteit({ searchParams }: { searchParams: Promi
     <div className="container">
       <div className="row" style={{ gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
         <h1 className="grow" style={{ margin: 0 }}>Aktiwiteit{who ? `: ${who.name}` : ""}</h1>
-        <a className="btn sm" href="/api/oudit/uitvoer" download>⬇ Laai alles af (JSON)</a>
       </div>
       <p className="muted" style={{ maxWidth: "85ch" }}>
         Alles wat onderwysers in die program doen, met <b>KI-reëlveranderinge</b> apart om na te gaan. Reëls geld dadelik; hier kan jy elke verandering goedkeur (“Nagegaan”) of afkeur (word teruggedraai). Volledige aantekening loop sedert {fmt(logStart)}; vroeër items is uit bestaande data herlei (gemerk “herlei”).

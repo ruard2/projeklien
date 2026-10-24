@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { approveExtraction, deleteComparison, makeGroupFromComparisonAction, rerunAllAction, retryComparison } from "@/app/onderwyser/pdf-aksies";
+import { approveExtraction, deleteComparison, rerunAllAction, retryComparison } from "@/app/onderwyser/pdf-aksies";
 import PdfKriteriumRy from "@/components/PdfKriteriumRy";
 import { db } from "@/lib/db";
 import type { ChatMsg } from "@/lib/pdf-vergelyking/gesprek";
@@ -13,7 +13,7 @@ import { requireTeacher } from "@/lib/sessie";
 import { getTemplate } from "@/lib/werkboeke/sjablone";
 import { sheetToText } from "@/lib/werkboeke/teks";
 
-export const metadata = { title: "PDF-vergelyking" };
+export const metadata = { title: "KI beoordeel" };
 
 function Lys({ items, empty = "—" }: { items: string[]; empty?: string }) {
   if (!items.length) return <p className="muted" style={{ margin: 0, fontSize: ".9rem" }}>{empty}</p>;
@@ -44,17 +44,11 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
     <div className="container">
       {busy && !stale ? <Herlaai seconds={5} /> : null}
       <p>
-        <Link href="/onderwyser/pdf-vergelyking">← Alle oplaaie</Link>
+        <Link href="/onderwyser/pdf-vergelyking">← KI beoordeel</Link>
         {c.groupId ? <> · <Link href={`/onderwyser/groep/${c.groupId}`}>Groep in die app</Link></> : null}
       </p>
       {paperGroup ? (
-        <div className="alert info">📱 Digitale werkboek gemaak: <strong>{paperGroup.name}</strong> · kode <code style={{ fontWeight: 700 }}>{paperGroup.code}</code>. Die leerders kan hiermee aanmeld en verder werk.</div>
-      ) : extracted && !c.groupId && ["nagaan", "ki", "klaar"].includes(c.status) ? (
-        <form action={makeGroupFromComparisonAction} className="card" style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-          <input type="hidden" name="id" value={c.id} />
-          <span className="grow">Maak hiervan ’n digitale werkboek sodat die groep in die app verder kan werk (met jou papierkommentaar en vars KI-terugvoer).</span>
-          <button className="btn sm">📱 Maak digitale werkboek</button>
-        </form>
+        <div className="alert info">📱 Digitale werkboek gemaak: <strong>{paperGroup.name}</strong> · kode <code style={{ fontWeight: 700 }}>{paperGroup.code}</code>. Die groep werk hiermee in die app verder.</div>
       ) : null}
       <div className="row" style={{ gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
         <h1 className="grow" style={{ margin: 0 }}>{template.label}</h1>

@@ -74,19 +74,13 @@ export default async function OnderwyserTuis({ searchParams }: { searchParams: P
         <h1 className="grow" style={{ margin: 0 }}>
           Groepe
         </h1>
+        <Link className="btn sm" href="/onderwyser/groepe">Groepkodes</Link>
         <form action={goToGroupByCode} className="row" style={{ gap: 8 }}>
           <input type="text" name="code" placeholder="Soek groepkode" style={{ width: 180 }} aria-label="Soek groepkode" />
           <button className="btn sm">Soek</button>
         </form>
       </div>
 
-      <div className="card pv-banner" style={{ marginBottom: 18 }}>
-        <div>
-          <b>📄 Papierwerkboek vergelyk met die KI</b>
-          <div className="muted" style={{ fontSize: ".9rem" }}>Laai ’n gescande, nagesiene werkboek op (graad 8 of 9) en sien jou kommentaar langs dié van die KI.</div>
-        </div>
-        <Link className="btn primary sm" href="/onderwyser/pdf-vergelyking">Laai PDF op</Link>
-      </div>
       {sp.nie ? <div className="alert warn" style={{ marginBottom: 16 }}>Geen groep met daardie kode nie.</div> : null}
 
       {waiting.length ? (

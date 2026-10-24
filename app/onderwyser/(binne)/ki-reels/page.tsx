@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { createRule, deleteRule, restoreRule, revertRule, toggleRule, updateRule } from "@/app/onderwyser/reel-aksies";
-import ReelInvoer from "@/components/ReelInvoer";
 import { db } from "@/lib/db";
 import { ALL_WORKBOOKS } from "@/lib/ki-reels";
 import { isAdminRole, requireTeacher } from "@/lib/sessie";
@@ -36,11 +35,10 @@ export default async function KiReels({ searchParams }: { searchParams: Promise<
   return (
     <div className="container">
       <div className="row" style={{ gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
-        <h1 className="grow" style={{ margin: 0 }}>KI-reëls</h1>
-        {isAdminRole(t.role) ? <a className="btn sm" href="/api/oudit/uitvoer" download>⬇ Laai alles af (JSON)</a> : null}
+        <div className="grow"><div className="crumb"><Link href="/onderwyser/ki">KI oplei</Link></div><h1 style={{ margin: 0 }}>KI-reëls</h1></div>
       </div>
       <p className="muted" style={{ maxWidth: "80ch" }}>
-        Reëls wat onderwysers by die KI-terugvoer gevoeg het, meestal uit ’n gesprek ná ’n 👎 by die PDF-vergelyking. Aktiewe reëls geld <b>dadelik</b> vir alle KI-terugvoer op hierdie werkboek, ook in die leerders se app. Elke handeling word aangeteken en kan teruggedraai word; geskrapte reëls kan herstel word.
+        Reëls wat onderwysers by die KI-terugvoer gevoeg het, meestal uit ’n gesprek ná ’n 👎 by <Link href="/onderwyser/pdf-vergelyking">KI beoordeel</Link>. Aktiewe reëls geld <b>dadelik</b> vir alle KI-terugvoer op hierdie werkboek, ook in die leerders se app. Elke handeling word aangeteken en kan teruggedraai word; geskrapte reëls kan herstel word.
       </p>
       <div className="tabs">
         <Link href={`/onderwyser/ki-reels?werkboek=${encodeURIComponent(ALL_WORKBOOKS)}`} className={isGlobal ? "on" : ""}>🌐 Alle werkboeke (gees)</Link>
@@ -69,12 +67,6 @@ export default async function KiReels({ searchParams }: { searchParams: Promise<
         </div>
       </details>
 
-      {isAdminRole(t.role) ? (
-        <details className="pv-acc" style={{ marginBottom: 18 }}>
-          <summary><span className="t">📥 Voer reëls in (JSON-lêer)</span></summary>
-          <div className="body"><ReelInvoer /></div>
-        </details>
-      ) : null}
 
       {rules.length === 0 ? (
         <div className="card empty">Nog geen reëls vir hierdie werkboek nie.</div>

@@ -228,7 +228,7 @@ export async function rerunAllAction(form: FormData) {
 /** Admin: beoordeel álle klaar vergelykings weer, een vir een in die agtergrond. */
 export async function rerunEverythingAction() {
   const t = await requireTeacher();
-  if (!isAdminRole(t.role)) redirect("/onderwyser/pdf-vergelyking");
+  if (!isAdminRole(t.role)) redirect("/onderwyser/ontwikkel");
   const list = await db.pdfComparison.findMany({ where: { schoolId: t.schoolId, status: { in: ["klaar", "fout"] }, NOT: { results: { equals: Prisma.DbNull } } }, select: { id: true }, orderBy: { createdAt: "asc" } });
   if (list.length) {
     await db.pdfComparison.updateMany({ where: { id: { in: list.map((x) => x.id) } }, data: { status: "ki" } });
@@ -238,7 +238,7 @@ export async function rerunEverythingAction() {
     });
   }
   revalidatePath("/onderwyser/pdf-vergelyking");
-  redirect("/onderwyser/pdf-vergelyking");
+  redirect("/onderwyser/ontwikkel");
 }
 
 // ---------------------------------------------------------------- Papier → digitale werkboek
@@ -280,5 +280,5 @@ export async function makeAllGroupsAction() {
   if (runs.length) after(async () => { for (const r of runs) await r(); });
   revalidatePath("/onderwyser/pdf-vergelyking");
   revalidatePath("/onderwyser");
-  redirect("/onderwyser/pdf-vergelyking#digitaal");
+  redirect("/onderwyser/ontwikkel#digitaal");
 }

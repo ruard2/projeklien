@@ -64,15 +64,12 @@ export default async function OnderwyserGroep({ params }: { params: Promise<{ id
           <Link className="btn sm" href={`/onderwyser/groep/${id}/druk`}>
             Hele werkboek / druk
           </Link>
-          <Link className="btn sm" href={`/onderwyser/pdf-vergelyking?groep=${id}`}>
-            📄 Papierwerkboek oplaai
-          </Link>
         </div>
       </div>
 
       {pdfs.length ? (
         <div className="alert info" style={{ marginBottom: 16 }}>
-          <b>Papierwerkboek-vergelykings:</b>{" "}
+          <b>{group.paperImport ? "Ingelees uit die papierwerkboek." : "Papierwerkboek:"}</b> KI beoordeel:{" "}
           {pdfs.map((p, i) => (
             <span key={p.id}>
               {i ? " · " : ""}

@@ -25,7 +25,7 @@ export const ACTIVITY_LABEL: Record<string, string> = {
   bestuur: "Bestuur",
   rekening: "Rekening",
   terugvoer: "Terugvoer",
-  pdf: "PDF-vergelyking",
+  pdf: "KI beoordeel",
   duim: "Duimpie / gesprek",
   ontwikkelaar: "Ontwikkelaar",
   reel: "KI-reël"
