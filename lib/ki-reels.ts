@@ -3,14 +3,17 @@
 import { db } from "./db";
 import { getSheet, getTemplate, parseSheetKey } from "./werkboeke/sjablone";
 
-export const RULE_MAX = 500;
+export const RULE_MAX = 1200;
+/** templateKey vir reëls wat vir alle werkboeke geld (algemene gees). */
+export const ALL_WORKBOOKS = "*";
 
 /** Die aktiewe reëls vir een werkblad, klaar geformuleer vir die KI-opdrag. */
 export async function rulesFor(schoolId: string, templateKey: string, sheetKey: string): Promise<string[]> {
   const { base } = parseSheetKey(sheetKey);
   const rules = await db.aiRule.findMany({
-    where: { schoolId, templateKey, active: true, deletedAt: null, OR: [{ sheet: null }, { sheet: base }] },
-    orderBy: { createdAt: "asc" },
+    where: { schoolId, templateKey: { in: [ALL_WORKBOOKS, templateKey] }, active: true, deletedAt: null, OR: [{ sheet: null }, { sheet: base }] },
+    // Algemene reëls eerste, dan die werkboek se eie, dan per werkblad/kriterium.
+    orderBy: [{ templateKey: "asc" }, { createdAt: "asc" }],
     take: 40
   });
   let sheet = null;
@@ -21,7 +24,7 @@ export async function rulesFor(schoolId: string, templateKey: string, sheetKey: 
   }
   return rules.map((r) => {
     const crit = r.criterionId ? sheet?.criteria.find((c) => c.id === r.criterionId) : null;
-    const scope = crit ? `[kriterium “${crit.title}”] ` : r.sheet ? "" : "[hele werkboek] ";
+    const scope = r.templateKey === ALL_WORKBOOKS ? "[algemene gees – alle werkboeke] " : crit ? `[kriterium “${crit.title}”] ` : r.sheet ? "" : "[hele werkboek] ";
     return `${scope}${r.text}`;
   });
 }

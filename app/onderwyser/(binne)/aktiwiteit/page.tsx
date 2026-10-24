@@ -94,7 +94,7 @@ export default async function Aktiwiteit({ searchParams }: { searchParams: Promi
         {openEvents.length === 0 ? <p className="muted" style={{ marginBottom: 0 }}>Alles is nagegaan. 👍</p> : (
           <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
             {openEvents.map((e) => {
-              const tpl = getTemplate(e.rule.templateKey);
+              const tpl = e.rule.templateKey === "*" ? { label: "Alle werkboeke (gees)", sheets: [] as ReturnType<typeof getTemplate>["sheets"] } : getTemplate(e.rule.templateKey);
               const s = e.rule.sheet ? tpl.sheets.find((x) => x.key === e.rule.sheet) : null;
               const c = e.rule.criterionId ? s?.criteria.find((x) => x.id === e.rule.criterionId) : null;
               return (
@@ -114,7 +114,7 @@ export default async function Aktiwiteit({ searchParams }: { searchParams: Promi
                   <div className="btn-row" style={{ marginTop: 8 }}>
                     <form action={markRuleEventReviewed}><input type="hidden" name="eventId" value={e.id} /><button className="btn sm ok">✓ Nagegaan – goed so</button></form>
                     <form action={rejectRuleEvent}><input type="hidden" name="eventId" value={e.id} /><button className="btn sm danger">✗ Afkeur – {rejectLabel(e.action)}</button></form>
-                    <Link className="btn sm ghost" href={`/onderwyser/ki-reels?werkboek=${e.rule.templateKey}`}>Na reëls</Link>
+                    <Link className="btn sm ghost" href={`/onderwyser/ki-reels?werkboek=${encodeURIComponent(e.rule.templateKey)}`}>Na reëls</Link>
                   </div>
                 </div>
               );

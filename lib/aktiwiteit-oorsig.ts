@@ -40,7 +40,7 @@ export async function buildTimeline(schoolId: string, opts: { teacherId?: string
       const tpl = safeTemplate(e.rule.templateKey);
       const s = e.rule.sheet ? tpl?.sheets.find((x) => x.key === e.rule.sheet) : null;
       const c = e.rule.criterionId ? s?.criteria.find((x) => x.id === e.rule.criterionId) : null;
-      const scope = `${tpl?.label ?? e.rule.templateKey} · ${s ? `WB${s.number}${c ? ` · ${c.title}` : ""}` : "hele werkboek"}`;
+      const scope = e.rule.templateKey === "*" ? "Alle werkboeke (gees)" : `${tpl?.label ?? e.rule.templateKey} · ${s ? `WB${s.number}${c ? ` · ${c.title}` : ""}` : "hele werkboek"}`;
       items.push({
         key: `r-${e.id}`,
         at: e.at,
@@ -48,7 +48,7 @@ export async function buildTimeline(schoolId: string, opts: { teacherId?: string
         teacherName: e.byName,
         type: "reel",
         summary: `KI-reël ${e.action}`,
-        link: `/onderwyser/ki-reels?werkboek=${e.rule.templateKey}`,
+        link: `/onderwyser/ki-reels?werkboek=${encodeURIComponent(e.rule.templateKey)}`,
         details: e.note ? { note: e.note } : undefined,
         rule: { eventId: e.id, ruleId: e.ruleId, action: e.action, oldText: e.oldText, newText: e.newText, reviewed: Boolean(e.reviewedAt), reviewedByName: e.reviewedByName, current: e.rule.text, active: e.rule.active, deleted: Boolean(e.rule.deletedAt), scope }
       });

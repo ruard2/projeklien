@@ -113,3 +113,16 @@ test("onderwyserreëls gaan saam in die KI-opdrag", async () => {
   const withRules = userPrompt({ ...base, teacherRules: ["[kriterium “Wie sê dit is ’n behoefte?”] Aanvaar ook ’n artikel as bron."] });
   assert.match(withRules, /ONDERWYSERREËLS[\s\S]*Aanvaar ook ’n artikel as bron\./);
 });
+
+test("voor/ná-opsomming tel ooreenkoms en veranderde oordele", async () => {
+  const { beforeAfter } = await import("../lib/pdf-vergelyking/diens");
+  const r = {
+    ws1: { result: { opsomming: "", kriteria: [{ id: "a", oordeel: "behaal" as const, terugvoer: "" }, { id: "b", oordeel: "behaal" as const, terugvoer: "" }], sterkpunte: [], vrae: [], reelkwessies: [] }, vergelyking: { ooreenkoms: "stem_ooreen" as const, opsomming: "", albei: [], net_juf: [], net_ki: [] }, voorheen: { ooreenkoms: "verskil", gereed: false, oordele: { a: "gedeeltelik", b: "behaal" }, at: "" } },
+    ws2: { result: { opsomming: "", kriteria: [], sterkpunte: [], vrae: [], reelkwessies: [] } }
+  };
+  const ba = beforeAfter([r]);
+  assert.equal(ba.sheets, 1);
+  assert.deepEqual(ba.voor, { verskil: 1 });
+  assert.deepEqual(ba.na, { stem_ooreen: 1 });
+  assert.equal(ba.changed, 1);
+});

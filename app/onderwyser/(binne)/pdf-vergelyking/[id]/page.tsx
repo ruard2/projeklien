@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { approveExtraction, deleteComparison, retryComparison } from "@/app/onderwyser/pdf-aksies";
+import { approveExtraction, deleteComparison, rerunAllAction, retryComparison } from "@/app/onderwyser/pdf-aksies";
 import PdfKriteriumRy from "@/components/PdfKriteriumRy";
 import { db } from "@/lib/db";
 import type { ChatMsg } from "@/lib/pdf-vergelyking/gesprek";
 import Herlaai from "@/components/Herlaai";
 import PdfWerkblad from "@/components/PdfWerkblad";
-import { asExtracted, asResults, loadOwnComparison, STALE_MS } from "@/lib/pdf-vergelyking/diens";
+import { asExtracted, asResults, beforeAfter, loadOwnComparison, STALE_MS } from "@/lib/pdf-vergelyking/diens";
+import VoorNa from "@/components/VoorNa";
 import { extractableSheets, jufText, membersFrom, studentOnlySheet } from "@/lib/pdf-vergelyking/skema";
 import { OORDEEL_LABEL, OOREENKOMS_LABEL, STATUS_LABEL } from "@/lib/pdf-vergelyking/status";
 import { requireTeacher } from "@/lib/sessie";
@@ -26,6 +27,7 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
   const template = getTemplate(c.templateKey);
   const extracted = asExtracted(c.extracted);
   const results = asResults(c.results);
+  const ba = beforeAfter([results]);
   const members = extracted ? membersFrom(extracted) : [];
   const sheets = extracted ? extractableSheets(template).filter((s) => extracted.sheets[s.key]) : [];
   const st = STATUS_LABEL[c.status] ?? { text: c.status, cls: "plain" };
@@ -115,6 +117,14 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
               ))}
             </div>
           ) : null}
+          {ba.sheets > 0 ? <VoorNa ba={ba} /> : null}
+          {c.status === "klaar" || c.status === "fout" ? (
+            <form action={rerunAllAction} style={{ marginBottom: 14 }}>
+              <input type="hidden" name="id" value={c.id} />
+              <button className="btn sm">🔄 Beoordeel alles weer met die huidige reëls</button>
+              <small className="muted" style={{ marginLeft: 8 }}>Die huidige uitslag word bewaar sodat jy voor en ná kan vergelyk.</small>
+            </form>
+          ) : null}
           {sheets.filter((s) => s.feedback).map((s) => {
             const e = extracted.sheets[s.key];
             const r = results[s.key];
@@ -128,6 +138,7 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
                   <span className="t">Werkblad {s.number} · {s.title}</span>
                   {!r ? <span className="badge wait">word verwerk…</span> : r.fout ? <span className="badge red">fout</span> : null}
                   {ov ? <span className={`badge ${ov.cls}`}>{ov.text}</span> : null}
+                  {r?.voorheen?.ooreenkoms && r.voorheen.ooreenkoms !== v?.ooreenkoms ? <span className="badge plain">was: {OOREENKOMS_LABEL[r.voorheen.ooreenkoms]?.text ?? r.voorheen.ooreenkoms}</span> : null}
                   {r?.result ? <span className={`badge plain ${r.gereed ? "ok" : ""}`}>{r.gereed ? "KI: gereed" : "KI: nog nie gereed"}</span> : null}
                   {up || down ? <span className="muted" style={{ fontSize: ".85rem", fontWeight: 500 }}>{up}👍 {down}👎</span> : null}
                 </summary>

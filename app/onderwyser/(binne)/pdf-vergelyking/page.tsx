@@ -1,5 +1,9 @@
 import Link from "next/link";
 import PdfInvoer from "@/components/PdfInvoer";
+import VoorNa from "@/components/VoorNa";
+import Herlaai from "@/components/Herlaai";
+import { rerunEverythingAction } from "@/app/onderwyser/pdf-aksies";
+import { asResults, beforeAfter } from "@/lib/pdf-vergelyking/diens";
 import PdfOplaai from "@/components/PdfOplaai";
 import { db } from "@/lib/db";
 import { aiConfigured } from "@/lib/ki";
@@ -22,7 +26,7 @@ export default async function PdfVergelyking({ searchParams }: { searchParams: P
       where: { schoolId: t.schoolId, ...(t.role === "TEACHER" ? { teacherId: t.id } : {}) },
       orderBy: { createdAt: "desc" },
       take: 50,
-      select: { id: true, createdAt: true, fileName: true, status: true, templateKey: true, teacherName: true, extracted: true }
+      select: { id: true, createdAt: true, fileName: true, status: true, templateKey: true, teacherName: true, extracted: true, results: true }
     })
   ]);
 
@@ -53,6 +57,28 @@ export default async function PdfVergelyking({ searchParams }: { searchParams: P
           <div className="body"><PdfInvoer /></div>
         </details>
       ) : null}
+
+      {(() => {
+        const ba = beforeAfter(items.map((c) => asResults(c.results)));
+        const admin = t.role !== "TEACHER";
+        const busy = items.filter((c) => c.status === "ki" || c.status === "uitlees").length;
+        if (!admin && ba.sheets === 0) return null;
+        return (
+          <div className="card" style={{ marginTop: 18 }}>
+            <div className="row" style={{ gap: 10, flexWrap: "wrap" }}>
+              <h2 className="grow" style={{ margin: 0 }}>Werk die reëls?</h2>
+              {admin ? (
+                <form action={rerunEverythingAction}>
+                  <button className="btn sm" disabled={busy > 0}>🔄 Beoordeel alle vergelykings weer</button>
+                </form>
+              ) : null}
+            </div>
+            {busy ? <Herlaai seconds={10} /> : null}
+            {busy ? <p className="muted" style={{ marginBottom: 0 }}><span className="spinner dark" /> {busy} vergelyking(s) word tans deur die KI beoordeel… herlaai die bladsy oor ’n paar minute.</p> : null}
+            {ba.sheets > 0 ? <VoorNa ba={ba} /> : <p className="muted" style={{ marginBottom: 0 }}>Beoordeel die vergelykings weer nadat reëls bygevoeg is; dan sien jy hier hoeveel meer die KI met die juf saamstem.</p>}
+          </div>
+        );
+      })()}
 
       <div className="card" style={{ marginTop: 18 }}>
         <h2>Vorige oplaaie</h2>

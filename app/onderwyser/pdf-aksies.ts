@@ -4,13 +4,13 @@ import { after } from "next/server";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
-import type { Prisma } from "@prisma/client";
-import { anonymisedSheetText, asExtracted, asResults, loadForFeedback, loadOwnComparison, rerunSheet, runExtraction, runFeedback, STALE_MS } from "@/lib/pdf-vergelyking/diens";
+import { Prisma } from "@prisma/client";
+import { anonymisedSheetText, asExtracted, asResults, loadForFeedback, loadOwnComparison, rerunAll, rerunSheet, runExtraction, runFeedback, STALE_MS } from "@/lib/pdf-vergelyking/diens";
 import { chatAboutVerdict, type ChatMsg, type Omvang } from "@/lib/pdf-vergelyking/gesprek";
 import { logRuleEvent, rulesFor, RULE_MAX } from "@/lib/ki-reels";
 import { cleanSheetData, jufText, membersFrom } from "@/lib/pdf-vergelyking/skema";
 import { getTemplate } from "@/lib/werkboeke/sjablone";
-import { requireTeacher } from "@/lib/sessie";
+import { isAdminRole, requireTeacher } from "@/lib/sessie";
 import { logActivity } from "@/lib/aktiwiteit";
 
 const path = (id: string) => `/onderwyser/pdf-vergelyking/${id}`;
@@ -211,4 +211,32 @@ export async function rerunSheetAction(k: { id: string; sheet: string }): Promis
     console.error(e);
     return { error: "Herbeoordeling het misluk." };
   }
+}
+
+/** Hele vergelyking weer deur die KI met die huidige reëls (voor/ná word bewaar). */
+export async function rerunAllAction(form: FormData) {
+  const t = await requireTeacher();
+  const c = await loadOwnComparison(String(form.get("id")), t);
+  if (c.status === "klaar" || c.status === "fout") {
+    await db.pdfComparison.update({ where: { id: c.id }, data: { status: "ki" } });
+    await logActivity(t, "pdf", `Hele vergelyking weer deur KI beoordeel (huidige reëls) · ${c.fileName}`, { link: path(c.id) });
+    after(() => rerunAll(c.id));
+  }
+  redirect(path(c.id));
+}
+
+/** Admin: beoordeel álle klaar vergelykings weer, een vir een in die agtergrond. */
+export async function rerunEverythingAction() {
+  const t = await requireTeacher();
+  if (!isAdminRole(t.role)) redirect("/onderwyser/pdf-vergelyking");
+  const list = await db.pdfComparison.findMany({ where: { schoolId: t.schoolId, status: { in: ["klaar", "fout"] }, NOT: { results: { equals: Prisma.DbNull } } }, select: { id: true }, orderBy: { createdAt: "asc" } });
+  if (list.length) {
+    await db.pdfComparison.updateMany({ where: { id: { in: list.map((x) => x.id) } }, data: { status: "ki" } });
+    await logActivity(t, "pdf", `Alle ${list.length} vergelykings weer deur KI beoordeel (huidige reëls)`, { link: "/onderwyser/pdf-vergelyking" });
+    after(async () => {
+      for (const x of list) await rerunAll(x.id);
+    });
+  }
+  revalidatePath("/onderwyser/pdf-vergelyking");
+  redirect("/onderwyser/pdf-vergelyking");
 }

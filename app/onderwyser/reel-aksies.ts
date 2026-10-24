@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
-import { logRuleEvent, RULE_MAX } from "@/lib/ki-reels";
+import { ALL_WORKBOOKS, logRuleEvent, RULE_MAX } from "@/lib/ki-reels";
 import { isAdminRole, requireTeacher } from "@/lib/sessie";
 import { getTemplate } from "@/lib/werkboeke/sjablone";
 
@@ -65,13 +65,14 @@ export async function createRule(form: FormData) {
   const scope = String(form.get("scope") ?? "");
   const text = String(form.get("text") ?? "").trim().slice(0, RULE_MAX);
   if (text.length < 8) return;
-  const template = getTemplate(templateKey);
+  const global = templateKey === ALL_WORKBOOKS;
+  const template = global ? null : getTemplate(templateKey);
   const [sheetKey, criterionId] = scope.split("|");
-  const sheet = sheetKey ? template.sheets.find((s) => s.key === sheetKey) : null;
+  const sheet = sheetKey && template ? template.sheets.find((s) => s.key === sheetKey) : null;
   const rule = await db.aiRule.create({
     data: {
       schoolId: t.schoolId,
-      templateKey: template.key,
+      templateKey: global ? ALL_WORKBOOKS : template!.key,
       sheet: sheet?.key ?? null,
       criterionId: sheet && criterionId && sheet.criteria.some((c) => c.id === criterionId) ? criterionId : null,
       text,
@@ -97,26 +98,30 @@ export async function importRules(_prev: ImportState, form: FormData): Promise<I
   } catch {
     return { error: "Dit is nie ’n geldige JSON-lêer nie." };
   }
-  let template;
-  try {
-    template = getTemplate(String(raw.werkboek ?? ""));
-  } catch {
-    return { error: `Onbekende werkboek “${raw.werkboek}”.` };
+  const global = raw.werkboek === ALL_WORKBOOKS;
+  let template = null;
+  if (!global) {
+    try {
+      template = getTemplate(String(raw.werkboek ?? ""));
+    } catch {
+      return { error: `Onbekende werkboek “${raw.werkboek}”.` };
+    }
   }
+  const key = global ? ALL_WORKBOOKS : template!.key;
   const list = Array.isArray(raw.reels) ? raw.reels.slice(0, 100) : [];
   let made = 0;
   const skipped: string[] = [];
   for (const r of list) {
     const text = String(r.teks ?? "").trim().slice(0, RULE_MAX);
-    const sheet = r.werkblad ? template.sheets.find((s) => s.key === r.werkblad) : null;
+    const sheet = r.werkblad && template ? template.sheets.find((s) => s.key === r.werkblad) : null;
     if (text.length < 8 || (r.werkblad && !sheet) || (r.kriterium && !sheet?.criteria.some((c) => c.id === r.kriterium))) {
       skipped.push(`${r.werkblad ?? "-"}/${r.kriterium ?? "-"}`);
       continue;
     }
-    const exists = await db.aiRule.findFirst({ where: { schoolId: t.schoolId, templateKey: template.key, text, deletedAt: null } });
+    const exists = await db.aiRule.findFirst({ where: { schoolId: t.schoolId, templateKey: key, text, deletedAt: null } });
     if (exists) continue;
     const rule = await db.aiRule.create({
-      data: { schoolId: t.schoolId, templateKey: template.key, sheet: sheet?.key ?? null, criterionId: r.kriterium ?? null, text, createdById: t.id, createdByName: t.name }
+      data: { schoolId: t.schoolId, templateKey: key, sheet: sheet?.key ?? null, criterionId: r.kriterium ?? null, text, createdById: t.id, createdByName: t.name }
     });
     await logRuleEvent({ ruleId: rule.id, schoolId: t.schoolId, by: t, action: "aangemaak", newText: text, note: `Ingevoer uit lêer (${file instanceof File ? file.name : "json"})` });
     made++;

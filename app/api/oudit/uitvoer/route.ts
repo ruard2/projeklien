@@ -26,6 +26,7 @@ export async function GET() {
     ]);
 
     const label = (templateKey: string, sheet: string | null, criterionId: string | null) => {
+      if (templateKey === "*") return { werkboek: "Alle werkboeke (gees)", werkblad: null, kriterium: null };
       try {
         const tpl = getTemplate(templateKey);
         const s = sheet ? tpl.sheets.find((x) => x.key === sheet) : null;

@@ -19,6 +19,8 @@ export type SheetResult = {
   vergelyking?: Vergelyking;
   fout?: string;
   herbeoordeel?: string;
+  /** Uitslag van vóór ’n volledige herbeoordeling (vir voor/ná-vergelyking). */
+  voorheen?: { ooreenkoms: string | null; gereed: boolean | null; oordele: Record<string, string>; at: string };
 };
 export type Results = Record<string, SheetResult>;
 
@@ -125,15 +127,30 @@ async function feedbackForSheet(l: Loaded, key: string): Promise<SheetResult> {
   }
 }
 
-export async function runFeedback(id: string) {
+export async function runFeedback(id: string, previous?: Results) {
   const l = await loadForFeedback(id);
   if (!l) return;
   const results: Results = {};
+  const stamp = new Date().toISOString();
+  const withPrev = (key: string, r: SheetResult): SheetResult => {
+    const p = previous?.[key];
+    if (!p?.result) return r;
+    return {
+      ...r,
+      herbeoordeel: stamp,
+      voorheen: {
+        ooreenkoms: p.vergelyking?.ooreenkoms ?? null,
+        gereed: p.gereed ?? null,
+        oordele: Object.fromEntries(p.result.kriteria.map((k) => [k.id, k.oordeel])),
+        at: p.herbeoordeel ?? ""
+      }
+    };
+  };
   const keys = extractableSheets(l.template).filter((s) => s.feedback && l.extracted.sheets[s.key]).map((s) => s.key);
   const save = () => db.pdfComparison.update({ where: { id }, data: { results: results as unknown as Prisma.InputJsonValue } });
   try {
     for (let i = 0; i < keys.length; i += 3) {
-      await Promise.all(keys.slice(i, i + 3).map(async (key) => { results[key] = await feedbackForSheet(l, key); }));
+      await Promise.all(keys.slice(i, i + 3).map(async (key) => { results[key] = withPrev(key, await feedbackForSheet(l, key)); }));
       await save();
     }
     await db.pdfComparison.update({ where: { id }, data: { status: "klaar", error: null, results: results as unknown as Prisma.InputJsonValue } });
@@ -155,3 +172,35 @@ export async function rerunSheet(id: string, key: string): Promise<SheetResult |
 }
 
 export { loadForFeedback };
+
+/** Beoordeel ’n hele vergelyking weer met die huidige reëls; die vorige uitslag word as “voorheen” bewaar. */
+export async function rerunAll(id: string) {
+  const c = await db.pdfComparison.findUnique({ where: { id }, select: { results: true } });
+  const previous = asResults(c?.results);
+  await db.pdfComparison.update({ where: { id }, data: { status: "ki", error: null } });
+  await runFeedback(id, previous);
+}
+
+/** Voor/ná-opsomming oor een of meer vergelykings. */
+export function beforeAfter(list: Results[]) {
+  const voor: Record<string, number> = {};
+  const na: Record<string, number> = {};
+  let sheets = 0;
+  let changed = 0;
+  let criteria = 0;
+  for (const results of list) {
+    for (const r of Object.values(results)) {
+      if (!r.voorheen || !r.result) continue;
+      sheets++;
+      const v = r.voorheen.ooreenkoms ?? "onbekend";
+      const n = r.vergelyking?.ooreenkoms ?? "onbekend";
+      voor[v] = (voor[v] ?? 0) + 1;
+      na[n] = (na[n] ?? 0) + 1;
+      for (const k of r.result.kriteria) {
+        criteria++;
+        if (r.voorheen.oordele[k.id] && r.voorheen.oordele[k.id] !== k.oordeel) changed++;
+      }
+    }
+  }
+  return { sheets, voor, na, changed, criteria };
+}
