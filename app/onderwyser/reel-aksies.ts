@@ -92,7 +92,7 @@ export async function importRules(_prev: ImportState, form: FormData): Promise<I
   if (!isAdminRole(t.role)) return { error: "Net administrateurs." };
   const file = form.get("file");
   if (!(file instanceof Blob) || file.size === 0) return { error: "Kies ’n lêer." };
-  let raw: { werkboek?: string; reels?: { werkblad?: string; kriterium?: string; teks?: string }[] };
+  let raw: { werkboek?: string; modus?: string; reels?: { werkblad?: string; kriterium?: string; teks?: string }[] };
   try {
     raw = JSON.parse(await file.text());
   } catch {
@@ -126,6 +126,20 @@ export async function importRules(_prev: ImportState, form: FormData): Promise<I
     await logRuleEvent({ ruleId: rule.id, schoolId: t.schoolId, by: t, action: "aangemaak", newText: text, note: `Ingevoer uit lêer (${file instanceof File ? file.name : "json"})` });
     made++;
   }
+  // “vervang”: die lêer is die volledige stel vir hierdie werkboek; ander aktiewe reëls word (omkeerbaar) geskrap.
+  let replaced = 0;
+  if (raw.modus === "vervang" && skipped.length === 0) {
+    const keep = new Set(list.map((r) => String(r.teks ?? "").trim().slice(0, RULE_MAX)));
+    const old = await db.aiRule.findMany({ where: { schoolId: t.schoolId, templateKey: key, deletedAt: null } });
+    for (const r of old) {
+      if (keep.has(r.text)) continue;
+      await db.aiRule.update({ where: { id: r.id }, data: { deletedAt: new Date() } });
+      await logRuleEvent({ ruleId: r.id, schoolId: t.schoolId, by: t, action: "geskrap", oldText: r.text, note: `Vervang deur gekonsolideerde stel (${file instanceof File ? file.name : "json"}); herstelbaar` });
+      replaced++;
+    }
+  }
   done();
-  return { ok: `${made} reël(s) bygevoeg${skipped.length ? `; ${skipped.length} oorgeslaan (onbekende werkblad/kriterium: ${skipped.join(", ")})` : ""}.` };
+  return {
+    ok: `${made} reël(s) bygevoeg${replaced ? `; ${replaced} ou reël(s) vervang (herstelbaar onder “Geskrap”)` : ""}${skipped.length ? `; ${skipped.length} oorgeslaan (onbekende werkblad/kriterium: ${skipped.join(", ")})${raw.modus === "vervang" ? " – daarom is niks vervang nie" : ""}` : ""}.`
+  };
 }

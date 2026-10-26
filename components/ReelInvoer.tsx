@@ -8,7 +8,7 @@ export default function ReelInvoer() {
   return (
     <form action={run} style={{ display: "grid", gap: 10 }}>
       <p className="muted" style={{ margin: 0, fontSize: ".9rem" }}>
-        Elke reël word dadelik aktief en in die ouditspoor as “Ingevoer uit lêer” aangeteken. Bestaande reëls met presies dieselfde teks word oorgeslaan.
+        Elke reël word dadelik aktief en in die ouditspoor as “Ingevoer uit lêer” aangeteken. Bestaande reëls met presies dieselfde teks word oorgeslaan. Staan daar <code>"modus": "vervang"</code> in die lêer, is dit die volledige stel vir daardie werkboek: ander aktiewe reëls word geskrap (herstelbaar).
       </p>
       <input type="file" name="file" accept="application/json,.json" required />
       <div className="btn-row"><button className="btn sm primary" disabled={pending}>{pending ? <span className="spinner" /> : null} Voer in</button></div>

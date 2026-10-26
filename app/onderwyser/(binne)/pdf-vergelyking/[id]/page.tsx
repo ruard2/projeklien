@@ -38,6 +38,8 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
   const myVoteRows = new Map(mine.map((v) => [`${v.sheet}|${v.criterionId}`, v]));
   const paperGroup = c.groupId ? await db.group.findFirst({ where: { id: c.groupId, paperImport: true }, select: { name: true, code: true } }) : null;
   const ruleIds = mine.map((v) => v.ruleId).filter((x): x is string => Boolean(x));
+  const scopeRuleRows = await db.aiRule.findMany({ where: { schoolId: c.schoolId, templateKey: c.templateKey, active: true, deletedAt: null, NOT: { sheet: null } }, orderBy: { createdAt: "asc" }, select: { sheet: true, criterionId: true, text: true } });
+  const existingRules = new Map(scopeRuleRows.map((r) => [`${r.sheet}|${r.criterionId ?? ""}`, r.text]));
   const ruleTexts = new Map((ruleIds.length ? await db.aiRule.findMany({ where: { id: { in: ruleIds } }, select: { id: true, text: true } }) : []).map((r) => [r.id, r.text]));
 
   return (
@@ -189,6 +191,7 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
                               vote={v?.vote ?? null}
                               chat={(v?.chat as ChatMsg[] | null) ?? []}
                               ruleText={v?.ruleId ? ruleTexts.get(v.ruleId) ?? null : null}
+                              existingRule={existingRules.get(`${s.key}|${k.id}`) ?? null}
                             />
                           );
                         })}

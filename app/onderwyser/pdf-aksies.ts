@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { anonymisedSheetText, asExtracted, asResults, loadForFeedback, loadOwnComparison, rerunAll, rerunSheet, runExtraction, runFeedback, STALE_MS } from "@/lib/pdf-vergelyking/diens";
 import { chatAboutVerdict, type ChatMsg, type Omvang } from "@/lib/pdf-vergelyking/gesprek";
-import { logRuleEvent, rulesFor, RULE_MAX } from "@/lib/ki-reels";
+import { logRuleEvent, rulesFor, RULE_MAX, scopeRules } from "@/lib/ki-reels";
 import { cleanSheetData, jufText, membersFrom } from "@/lib/pdf-vergelyking/skema";
 import { getTemplate } from "@/lib/werkboeke/sjablone";
 import { isAdminRole, requireTeacher } from "@/lib/sessie";
@@ -149,6 +149,7 @@ export async function chatVote(k: VoteKey & { text: string }): Promise<{ chat?: 
       sheetText: anonymisedSheetText(l, k.sheet),
       jufText: jufText(l.extracted.sheets[k.sheet], membersFrom(l.extracted)),
       rules: await rulesFor(c.schoolId, c.templateKey, k.sheet),
+      criterionRule: (await scopeRules(c.schoolId, c.templateKey, k.sheet, k.criterion))[0]?.text ?? null,
       history
     });
     const chat: ChatMsg[] = [...history, { van: "ki" as const, teks: out.antwoord, at: new Date().toISOString(), ...(out.reel ? { reel: out.reel, omvang: out.omvang } : {}) }];
@@ -172,6 +173,27 @@ export async function addRuleFromVote(k: VoteKey & { text: string; omvang: Omvan
   if (text.length < 8) return { error: "Die reël is te kort." };
   try {
     const c = await loadOwnComparison(k.id, t);
+    const vote = await db.pdfVote.findUnique({ where: voteWhere(c.id, k.sheet, k.criterion, t.id) });
+    const note = vote?.reason ? `Uit gesprek ná 👎: “${vote.reason}”` : null;
+    // Een reël per kriterium (of per werkblad): ’n nuwe reël vervang die bestaande een (omkeerbaar).
+    if (k.omvang !== "werkboek") {
+      const same = await scopeRules(c.schoolId, c.templateKey, k.sheet, k.omvang === "kriterium" ? k.criterion : null);
+      if (same.length) {
+        const [keep, ...rest] = same;
+        if (keep.text !== text) {
+          await db.aiRule.update({ where: { id: keep.id }, data: { text } });
+          await logRuleEvent({ ruleId: keep.id, schoolId: c.schoolId, by: t, action: "gewysig", oldText: keep.text, newText: text, note: note ? `${note} (vervang bestaande reël)` : "Vervang bestaande reël" });
+        }
+        for (const r of rest) {
+          await db.aiRule.update({ where: { id: r.id }, data: { deletedAt: new Date() } });
+          await logRuleEvent({ ruleId: r.id, schoolId: c.schoolId, by: t, action: "geskrap", oldText: r.text, note: "Saamgevoeg in een reël per kriterium" });
+        }
+        await db.pdfVote.updateMany({ where: { comparisonId: c.id, sheet: k.sheet, criterionId: k.criterion, teacherId: t.id }, data: { ruleId: keep.id } });
+        revalidatePath(path(c.id));
+        revalidatePath("/onderwyser/ki-reels");
+        return { ok: true };
+      }
+    }
     const rule = await db.aiRule.create({
       data: {
         schoolId: c.schoolId,
@@ -184,8 +206,7 @@ export async function addRuleFromVote(k: VoteKey & { text: string; omvang: Omvan
         sourceComparisonId: c.id
       }
     });
-    const vote = await db.pdfVote.findUnique({ where: voteWhere(c.id, k.sheet, k.criterion, t.id) });
-    await logRuleEvent({ ruleId: rule.id, schoolId: c.schoolId, by: t, action: "aangemaak", newText: text, note: vote?.reason ? `Uit gesprek ná 👎: “${vote.reason}”` : null });
+    await logRuleEvent({ ruleId: rule.id, schoolId: c.schoolId, by: t, action: "aangemaak", newText: text, note });
     await db.pdfVote.updateMany({ where: { comparisonId: c.id, sheet: k.sheet, criterionId: k.criterion, teacherId: t.id }, data: { ruleId: rule.id } });
     revalidatePath(path(c.id));
     revalidatePath("/onderwyser/ki-reels");

@@ -22,6 +22,7 @@ export default function PdfKriteriumRy(p: {
   vote: number | null;
   chat: ChatMsg[];
   ruleText: string | null;
+  existingRule?: string | null;
 }) {
   const router = useRouter();
   const [vote, setVoteState] = useState<number | null>(p.vote);
@@ -146,8 +147,11 @@ export default function PdfKriteriumRy(p: {
                     <select value={omvang} onChange={(e) => setOmvang(e.target.value as Omvang)} disabled={pending} style={{ width: "auto" }}>
                       {OMVANG.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                     </select>
-                    <button type="button" className="btn sm ok" onClick={addRule} disabled={pending || rule.trim().length < 8}>➕ Voeg reël by</button>
+                    <button type="button" className="btn sm ok" onClick={addRule} disabled={pending || rule.trim().length < 8}>{p.existingRule && omvang === "kriterium" ? "✏️ Vervang bestaande reël" : "➕ Voeg reël by"}</button>
                   </div>
+                  {p.existingRule && omvang === "kriterium" ? (
+                    <div className="muted" style={{ fontSize: ".85rem" }}>Daar is reeds ’n reël vir hierdie kriterium: “{p.existingRule}”. Die nuwe teks <b>vervang</b> dit (een reël per kriterium; die ou teks bly in die geskiedenis en kan teruggedraai word).</div>
+                  ) : null}
                   <div className="alert warn" style={{ fontSize: ".85rem", padding: "8px 10px" }}>⚠ Die KI onthou niks uit hierdie gesprek nie. Eers as jy op <b>➕ Voeg reël by</b> druk, geld dit – dadelik vir alle KI-terugvoer op hierdie werkboek, ook in die leerders se app. Jy kan dit later by “KI-reëls” afskakel.</div>
                 </div>
               ) : null}

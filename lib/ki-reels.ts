@@ -54,3 +54,11 @@ export async function logRuleEvent(e: {
     }
   });
 }
+
+/** Aktiewe reëls vir presies één omvang (werkblad + kriterium, of hele werkblad), nuutste eerste. */
+export async function scopeRules(schoolId: string, templateKey: string, sheet: string, criterionId: string | null) {
+  return db.aiRule.findMany({
+    where: { schoolId, templateKey, sheet, criterionId, active: true, deletedAt: null },
+    orderBy: { createdAt: "desc" }
+  });
+}
