@@ -19,10 +19,11 @@ export function GroepAanmeld() {
   );
 }
 
-export function OnderwyserAanmeld() {
+export function OnderwyserAanmeld({ na }: { na?: string }) {
   const [state, action, pending] = useActionState<FormState, FormData>(teacherLogin, undefined);
   return (
     <form action={action} style={{ display: "grid", gap: 14, textAlign: "left" }}>
+      {na ? <input type="hidden" name="na" value={na} /> : null}
       <div>
         <label className="lbl" htmlFor="email">
           E-pos

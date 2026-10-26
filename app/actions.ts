@@ -44,7 +44,8 @@ export async function teacherLogin(_prev: FormState, form: FormData): Promise<Fo
   await db.teacher.update({ where: { id: t.id }, data: { lastLoginAt: new Date() } });
   await setTeacherSession(t.id);
   await logActivity(t, "aanmeld", "Aangemeld");
-  redirect("/onderwyser");
+  const na = String(form.get("na") ?? "");
+  redirect(na.startsWith("/") && !na.startsWith("//") && !na.includes("\\") ? na : "/onderwyser");
 }
 
 export async function teacherLogout() {

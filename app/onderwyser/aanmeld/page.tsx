@@ -5,8 +5,14 @@ import { currentTeacher } from "@/lib/sessie";
 
 export const metadata = { title: "Onderwyser" };
 
-export default async function OnderwyserAanmeldBladsy() {
-  if (await currentTeacher()) redirect("/onderwyser");
+/** Net interne paaie, nooit ’n ander webwerf nie. */
+function safeNext(v?: string) {
+  return v && v.startsWith("/") && !v.startsWith("//") && !v.includes("\\") ? v : undefined;
+}
+
+export default async function OnderwyserAanmeldBladsy({ searchParams }: { searchParams: Promise<{ na?: string }> }) {
+  const na = safeNext((await searchParams).na);
+  if (await currentTeacher()) redirect(na ?? "/onderwyser");
   return (
     <div className="hero">
       <div className="hero-card">
@@ -15,7 +21,7 @@ export default async function OnderwyserAanmeldBladsy() {
         <h1>Onderwyser</h1>
         <p className="sub">Volg groepe se vordering, lees die KI-terugvoer en teken kontrolepunte af.</p>
         <div className="card">
-          <OnderwyserAanmeld />
+          <OnderwyserAanmeld na={na} />
         </div>
         <p style={{ marginTop: 18, fontSize: ".9rem" }}>
           <Link href="/">← Aanmelding vir groepe</Link>

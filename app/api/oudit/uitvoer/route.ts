@@ -14,7 +14,8 @@ import { sheetToText } from "@/lib/werkboeke/teks";
 export async function GET() {
   return handle(async () => {
     const t = await currentTeacher();
-    if (!t || !isAdminRole(t.role)) return fout("Net administrateurs.", 403);
+    if (!t) return new Response(null, { status: 302, headers: { Location: "/onderwyser/aanmeld?na=/api/oudit/uitvoer" } });
+    if (!isAdminRole(t.role)) return fout("Net administrateurs.", 403);
     const schoolId = t.schoolId;
 
     const [teachers, rules, votes, comparisons, activity] = await Promise.all([
