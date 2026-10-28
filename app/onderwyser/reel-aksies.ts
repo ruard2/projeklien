@@ -98,6 +98,9 @@ export async function importRules(_prev: ImportState, form: FormData): Promise<I
   } catch {
     return { error: "Dit is nie ’n geldige JSON-lêer nie." };
   }
+  if (!Array.isArray(raw.reels) && raw && typeof raw === "object" && "werkboeke" in raw) {
+    return { error: "Dit is ’n lêer met uitgelese werkboeke, nie met KI-reëls nie. Voer dit in by “Uitgelese werkboeke invoer (JSON)”." };
+  }
   const global = raw.werkboek === ALL_WORKBOOKS;
   let template = null;
   if (!global) {

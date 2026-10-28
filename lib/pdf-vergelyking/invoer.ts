@@ -41,6 +41,9 @@ function describe(raw: unknown): string {
 }
 
 export function parseImport(raw: unknown): ImportItem[] {
+  if (raw && typeof raw === "object" && !Array.isArray(raw) && Array.isArray((raw as { reels?: unknown }).reels)) {
+    throw new Error("Dit is ’n lêer met KI-reëls, nie met werkboeke nie. Voer dit in by “KI-reëls invoer (JSON)”.");
+  }
   const list = findList(raw);
   if (!Array.isArray(list) || !list.length) {
     throw new Error(`Die lêer bevat geen werkboeke nie (ontvang: ${describe(raw)}). Verwag word { "werkboeke": [ … ] } soos in die opdrag vir die KI.`);
