@@ -56,5 +56,6 @@ test("invoer: ook dubbel gekodeer, enkele werkboek of ander omhulsel", async () 
   for (const raw of [{ werkboeke: [wb] }, [wb], wb, JSON.stringify({ werkboeke: [wb] }), { data: { werkboeke: [wb] } }, { werkboeke: { a: wb } }]) {
     assert.equal(parseImport(raw).length, 1);
   }
-  assert.throws(() => parseImport({ reels: [] }), /ontvang: velde: reels/);
+  assert.throws(() => parseImport({ reels: [] }), /KI-reëls/);
+  assert.throws(() => parseImport({ iets: 1 }), /ontvang: velde: iets/);
 });
