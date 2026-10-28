@@ -11,9 +11,40 @@ export type ImportItem = { templateKey: string; name: string; extracted: Extract
 const str = (v: unknown, max = 200) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const lines = (v: unknown) => (Array.isArray(v) ? v : []).map((x) => str(x, 1000)).filter(Boolean).slice(0, 40);
 
+/** Vind die lys werkboeke, ook as die lêer effens anders verpak is (dubbel gekodeer, een werkboek, ander omhulsel). */
+function findList(raw: unknown, depth = 0): unknown[] | null {
+  if (depth > 3) return null;
+  if (typeof raw === "string") {
+    try {
+      return findList(JSON.parse(raw.replace(/^\uFEFF/, "")), depth + 1);
+    } catch {
+      return null;
+    }
+  }
+  if (Array.isArray(raw)) return raw.length && raw.every((x) => x && typeof x === "object" && "werkboek" in x) ? raw : raw.length === 1 ? findList(raw[0], depth + 1) : raw;
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  if ("werkboek" in o && "werkblaaie" in o) return [o];
+  if (Array.isArray(o.werkboeke)) return o.werkboeke;
+  if (o.werkboeke && typeof o.werkboeke === "object") return Object.values(o.werkboeke as object);
+  for (const v of Object.values(o)) {
+    const found = v && typeof v === "object" ? findList(v, depth + 1) : null;
+    if (found?.length) return found;
+  }
+  return null;
+}
+
+function describe(raw: unknown): string {
+  if (Array.isArray(raw)) return `’n lys met ${raw.length} item(s)`;
+  if (raw && typeof raw === "object") return `velde: ${Object.keys(raw).slice(0, 8).join(", ") || "(geen)"}`;
+  return typeof raw;
+}
+
 export function parseImport(raw: unknown): ImportItem[] {
-  const list = Array.isArray(raw) ? raw : raw && typeof raw === "object" ? (raw as { werkboeke?: unknown }).werkboeke : null;
-  if (!Array.isArray(list) || !list.length) throw new Error("Die lêer bevat geen werkboeke nie.");
+  const list = findList(raw);
+  if (!Array.isArray(list) || !list.length) {
+    throw new Error(`Die lêer bevat geen werkboeke nie (ontvang: ${describe(raw)}). Verwag word { "werkboeke": [ … ] } soos in die opdrag vir die KI.`);
+  }
   if (list.length > 60) throw new Error("Hoogstens 60 werkboeke per lêer.");
   return list.map((item, i) => {
     const r = (item ?? {}) as Record<string, unknown>;

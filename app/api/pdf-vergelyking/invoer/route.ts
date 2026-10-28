@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     if (file.size > 10 * 1024 * 1024) return fout("Die lêer is te groot.");
     let items;
     try {
-      items = parseImport(JSON.parse(await file.text()));
+      items = parseImport(JSON.parse((await file.text()).replace(/^\uFEFF/, "").trim()));
     } catch (e) {
       return fout(e instanceof SyntaxError ? "Dit is nie ’n geldige JSON-lêer nie." : e instanceof Error ? e.message : "Ongeldige lêer.");
     }

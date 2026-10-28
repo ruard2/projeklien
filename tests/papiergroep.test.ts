@@ -49,3 +49,12 @@ test("dubbele oplaaie: een per groep, handmatig wen", () => {
   const r2 = pickPaperCandidates([mk("a", iawd, "gpt-5.4", 20, "g1"), mk("c", iawd, "gpt-5.4", 23)], new Set(["g1"]));
   assert.equal(r2.picks.length, 0);
 });
+
+test("invoer: ook dubbel gekodeer, enkele werkboek of ander omhulsel", async () => {
+  const { parseImport } = await import("../lib/pdf-vergelyking/invoer");
+  const wb = { werkboek: volGr9Haweloosheid.key, naam: "x", lede: ["A"], werkblaaie: { ws3: { data: { groot: "g" }, juf: {} } } };
+  for (const raw of [{ werkboeke: [wb] }, [wb], wb, JSON.stringify({ werkboeke: [wb] }), { data: { werkboeke: [wb] } }, { werkboeke: { a: wb } }]) {
+    assert.equal(parseImport(raw).length, 1);
+  }
+  assert.throws(() => parseImport({ reels: [] }), /ontvang: velde: reels/);
+});
