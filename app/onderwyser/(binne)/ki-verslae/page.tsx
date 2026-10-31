@@ -15,7 +15,7 @@ export default async function KiVerslae() {
 
   return (
     <div className="container narrow">
-      <h1>KI-verslae van groepe</h1>
+      <h2>Leerders oor die KI</h2>
       <p className="muted">Wanneer ’n groep ’n KI-antwoord as verkeerd, onveilig of onvanpas rapporteer, verskyn dit hier vir die onderwyser.</p>
       {reports.length === 0 ? <div className="card empty">Nog geen KI-antwoorde is deur groepe gerapporteer nie.</div> : (
         <div style={{ display: "grid", gap: 12 }}>

@@ -7,7 +7,7 @@ import { dataHash } from "./hash";
 import { AI_PROMPT_VERSION, generateFeedback, isReady, type FeedbackResult } from "./ki";
 import { buildFeedbackInput, snapshotFeedbackInput } from "./ki-invoer";
 import { getSheet, getTemplate } from "./werkboeke/sjablone";
-import { canSubmit, sheetAccess, type CheckpointState } from "./werkboeke/toegang";
+import { canSubmit, progress, sheetAccess, type CheckpointState } from "./werkboeke/toegang";
 import type { Sheet, SheetData, Template } from "./werkboeke/tipes";
 import { missingFields } from "./werkboeke/volledigheid";
 
@@ -57,7 +57,10 @@ function asData(v: unknown): SheetData {
 export async function getSheetState(groupId: string, sheetKey: string) {
   const { group, template, members } = await loadWorkbook(groupId);
   const sheet = resolveSheet(template, sheetKey);
-  const access = sheetAccess(sheet, cpStates(group.checkpoints), { paperImport: group.paperImport });
+  const access = sheetAccess(sheet, cpStates(group.checkpoints), {
+    paperImport: group.paperImport,
+    unlockedUpTo: progress(template, cpStates(group.checkpoints), sheetStatesFor(template, group.responses)).unlockedUpTo
+  });
   const response = group.responses.find((r) => r.sheet === sheetKey) ?? null;
   return { group, template, members, sheet, access, response };
 }
@@ -126,11 +129,12 @@ async function snapshot(groupId: string, sheet: string, revision: number, data: 
 
 // ---------------------------------------------------------------- Terugvoer
 
-export async function requestFeedback(groupId: string, sheetKey: string) {
+/** opts.byTeacher: die onderwyser vra self nuwe terugvoer (ook op ’n gesluite werkblad, bv. ná ’n nuwe reël). */
+export async function requestFeedback(groupId: string, sheetKey: string, opts: { byTeacher?: boolean } = {}) {
   const state = await getSheetState(groupId, sheetKey);
   const { template, sheet, access } = state;
   if (!sheet.feedback) throw new DiensFout("Hierdie bladsy het nie terugvoer nie.");
-  if (!access.editable) throw new DiensFout(access.reason ?? "Hierdie werkblad is gesluit.", 423, "gesluit");
+  if (!access.editable && !opts.byTeacher) throw new DiensFout(access.reason ?? "Hierdie werkblad is gesluit.", 423, "gesluit");
   const response =
     state.response ??
     (await db.response.upsert({
@@ -200,7 +204,8 @@ export function sheetStatesFor(template: Template, responses: Response[]) {
         sheet: s.key,
         status: r?.status ?? ("NOT_STARTED" as const),
         readyHash: r?.readyHash ?? null,
-        currentHash: dataHash(asData(r?.data))
+        currentHash: dataHash(asData(r?.data)),
+        started: Object.keys(asData(r?.data)).length > 0
       };
     });
 }
@@ -236,7 +241,8 @@ export async function decideCheckpoint(
 ) {
   const { group } = await loadWorkbook(groupId);
   const cp = group.checkpoints.find((c) => c.number === n) ?? null;
-  if (decision === "APPROVED" && cp?.status !== "SUBMITTED") throw new DiensFout("Slegs ingediende kontrolepunte kan afgeteken word.");
+  // Die onderwyser het die laaste sê: aftekening kan ook sonder dat die groep ingedien het.
+  if (decision === "APPROVED" && cp?.status === "APPROVED") throw new DiensFout("Hierdie kontrolepunt is reeds afgeteken.");
   if (decision === "RETURNED" && !comment.trim()) throw new DiensFout("Skryf asseblief vir die groep wat nog aandag nodig het.");
   const action = decision === "APPROVED" ? "afgeteken" : "teruggestuur";
   await db.checkpoint.upsert({

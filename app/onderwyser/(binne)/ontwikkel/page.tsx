@@ -7,12 +7,12 @@ import { makeAllGroupsAction, rerunEverythingAction } from "@/app/onderwyser/pdf
 import { db } from "@/lib/db";
 import { aiConfigured } from "@/lib/ki";
 import { paperGroupName, pickPaperCandidates } from "@/lib/pdf-vergelyking/papier";
-import { isAdminRole, requireTeacher } from "@/lib/sessie";
+import { isAdminRole, requireDeveloper } from "@/lib/sessie";
 
 export const metadata = { title: "Ontwikkelfunksies" };
 
 export default async function Ontwikkel({ searchParams }: { searchParams: Promise<{ groep?: string }> }) {
-  const t = await requireTeacher();
+  const t = await requireDeveloper();
   const admin = isAdminRole(t.role);
   const { groep } = await searchParams;
   const group = groep
@@ -40,7 +40,12 @@ export default async function Ontwikkel({ searchParams }: { searchParams: Promis
     <div className="container">
       <h1>🧪 Ontwikkelfunksies</h1>
       <div className="dev-banner">
-        Tydelike gereedskap om papierwerkboeke in te lees en die KI op te lei. Dit word later uitgefaseer; die gewone werk gebeur by <Link href="/onderwyser">Groepe</Link> en <Link href="/onderwyser/ki">KI oplei</Link>.
+        Net vir die ontwikkelaar: papierwerkboeke inlees, die KI toets en terugvoer verwerk. Onderwysers sien dit nie (sodra daar ’n eie ontwikkelaarsrekening is). Die gewone werk gebeur by <Link href="/onderwyser">Groepe</Link> en <Link href="/onderwyser/ki-reels">KI-reëls</Link>.
+      </div>
+      <div className="hub">
+        <Link href="/onderwyser/pdf-vergelyking"><b>⚖️ KI beoordeel (papier)</b><span>Juf se papierkommentaar langs die KI, 👍/👎 en voor/ná.</span></Link>
+        <Link href="/onderwyser/terugvoer"><b>💬 Ontwikkelaarsinkassie</b><span>Terugvoer van onderwysers en verslae van leerders verwerk en beantwoord.</span></Link>
+        <Link href="/onderwyser/evaluasies"><b>🧪 KI-toetse</b><span>Regressietoetse uit werklike gevalle.</span></Link>
       </div>
 
       {paperGroups.length || canMake.length ? (

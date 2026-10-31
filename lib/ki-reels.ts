@@ -62,3 +62,49 @@ export async function scopeRules(schoolId: string, templateKey: string, sheet: s
     orderBy: { createdAt: "desc" }
   });
 }
+
+/**
+ * Stoor ’n reël uit ’n gesprek met die KI. Een reël per kriterium (of per werkblad): bestaan daar reeds een,
+ * word dit vervang (omkeerbaar via die geskiedenis) in plaas van ’n tweede reël te maak.
+ */
+export async function saveRuleFromChat(a: {
+  schoolId: string;
+  templateKey: string;
+  sheet: string;
+  criterionId: string;
+  omvang: "kriterium" | "werkblad" | "werkboek";
+  text: string;
+  by: { id: string; name: string; role?: string };
+  note: string | null;
+  sourceComparisonId?: string | null;
+}): Promise<string> {
+  if (a.omvang !== "werkboek") {
+    const same = await scopeRules(a.schoolId, a.templateKey, a.sheet, a.omvang === "kriterium" ? a.criterionId : null);
+    if (same.length) {
+      const [keep, ...rest] = same;
+      if (keep.text !== a.text) {
+        await db.aiRule.update({ where: { id: keep.id }, data: { text: a.text } });
+        await logRuleEvent({ ruleId: keep.id, schoolId: a.schoolId, by: a.by, action: "gewysig", oldText: keep.text, newText: a.text, note: a.note ? `${a.note} (vervang bestaande reël)` : "Vervang bestaande reël" });
+      }
+      for (const r of rest) {
+        await db.aiRule.update({ where: { id: r.id }, data: { deletedAt: new Date() } });
+        await logRuleEvent({ ruleId: r.id, schoolId: a.schoolId, by: a.by, action: "geskrap", oldText: r.text, note: "Saamgevoeg in een reël per kriterium" });
+      }
+      return keep.id;
+    }
+  }
+  const rule = await db.aiRule.create({
+    data: {
+      schoolId: a.schoolId,
+      templateKey: a.templateKey,
+      sheet: a.omvang === "werkboek" ? null : a.sheet,
+      criterionId: a.omvang === "kriterium" ? a.criterionId : null,
+      text: a.text,
+      createdById: a.by.id,
+      createdByName: a.by.name,
+      sourceComparisonId: a.sourceComparisonId ?? null
+    }
+  });
+  await logRuleEvent({ ruleId: rule.id, schoolId: a.schoolId, by: a.by, action: "aangemaak", newText: a.text, note: a.note });
+  return rule.id;
+}

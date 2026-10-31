@@ -14,6 +14,7 @@ export type FeedbackInputSnapshot = {
   contextTexts: FeedbackInput["contextTexts"];
   extraContext?: string;
   teacherRules?: string[];
+  previous?: FeedbackInput["previous"];
 };
 
 function asData(value: unknown): SheetData {
@@ -90,8 +91,17 @@ export async function buildFeedbackInput(groupId: string, sheetKey: string, revi
     sheetText: sheetToText(sheet, data, { members, anonymise: true, photoCounts }),
     contextTexts,
     extraContext,
-    teacherRules: await rulesFor(group.project.schoolId, template.key, sheetKey)
+    teacherRules: await rulesFor(group.project.schoolId, template.key, sheetKey),
+    previous: await previousFeedback(groupId, sheetKey)
   };
+}
+
+/** Die jongste werklike KI-terugvoer (nie die volledigheidstoets nie) op hierdie werkblad. */
+async function previousFeedback(groupId: string, sheetKey: string): Promise<FeedbackInput["previous"]> {
+  const fb = await db.feedback.findFirst({ where: { groupId, sheet: sheetKey, NOT: { source: "volledigheid" } }, orderBy: { createdAt: "desc" }, select: { result: true } });
+  const k = (fb?.result as { kriteria?: { id: string; oordeel: string; terugvoer: string }[] } | null)?.kriteria;
+  if (!Array.isArray(k) || !k.length) return undefined;
+  return k.map((x) => ({ id: x.id, oordeel: x.oordeel as "behaal", terugvoer: String(x.terugvoer ?? "").slice(0, 600) }));
 }
 
 export function snapshotFeedbackInput(input: FeedbackInput, sheetKey: string): FeedbackInputSnapshot {
@@ -103,7 +113,8 @@ export function snapshotFeedbackInput(input: FeedbackInput, sheetKey: string): F
     sheetText: input.sheetText,
     contextTexts: input.contextTexts,
     ...(input.extraContext ? { extraContext: input.extraContext } : {}),
-    ...(input.teacherRules?.length ? { teacherRules: input.teacherRules } : {})
+    ...(input.teacherRules?.length ? { teacherRules: input.teacherRules } : {}),
+    ...(input.previous?.length ? { previous: input.previous } : {})
   };
 }
 
@@ -119,6 +130,7 @@ export function restoreFeedbackInput(snapshot: FeedbackInputSnapshot): FeedbackI
     sheetText: snapshot.sheetText,
     contextTexts: snapshot.contextTexts,
     extraContext: snapshot.extraContext,
-    teacherRules: snapshot.teacherRules
+    teacherRules: snapshot.teacherRules,
+    previous: snapshot.previous
   };
 }

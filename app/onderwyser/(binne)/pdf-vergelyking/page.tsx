@@ -4,7 +4,7 @@ import VoorNa from "@/components/VoorNa";
 import Herlaai from "@/components/Herlaai";
 import { asResults, beforeAfter } from "@/lib/pdf-vergelyking/diens";
 import { db } from "@/lib/db";
-import { requireTeacher } from "@/lib/sessie";
+import { requireDeveloper } from "@/lib/sessie";
 import { getTemplate } from "@/lib/werkboeke/sjablone";
 import { STATUS_LABEL } from "@/lib/pdf-vergelyking/status";
 import { paperGroupName, paperIdentity } from "@/lib/pdf-vergelyking/papier";
@@ -14,7 +14,7 @@ export const metadata = { title: "KI beoordeel" };
 
 
 export default async function PdfVergelyking({ searchParams }: { searchParams: Promise<{ groep?: string }> }) {
-  const t = await requireTeacher();
+  const t = await requireDeveloper();
   const { groep } = await searchParams;
   if (groep) redirect(`/onderwyser/ontwikkel?groep=${encodeURIComponent(groep)}`);
   const [items] = await Promise.all([
@@ -37,8 +37,8 @@ export default async function PdfVergelyking({ searchParams }: { searchParams: P
 
   return (
     <div className="container">
-      <div className="crumb"><Link href="/onderwyser/ki">KI oplei</Link></div>
-      <h1>KI beoordeel</h1>
+      <div className="crumb"><Link href="/onderwyser/ontwikkel">🧪 Ontwikkelaar</Link></div>
+      <h1>KI beoordeel (papierwerkboeke)</h1>
       <p className="muted" style={{ maxWidth: "80ch" }}>
         Per nagesiene werkboek sien jy jou eie kommentaar langs dié van die KI. Gee 👍 of 👎 per kriterium; by ’n 👎 praat jy met die KI en word ’n reël voorgestel wat dadelik geld.
       </p>

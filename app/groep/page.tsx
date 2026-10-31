@@ -81,7 +81,7 @@ export default async function GroepTuis() {
                   </div>
                   <div className="right">
                     <CpBadge status={cp.status} />
-                    {locked ? <span className="badge">Gaan oop ná kontrolepunt {cp.number - 1}</span> : null}
+                    {locked ? <span className="badge">Gaan oop as kontrolepunt {cp.number - 1} klaar is</span> : cp.satisfied && cp.status !== "APPROVED" ? <span className="badge ok">KI tevrede · julle kan verder</span> : null}
                   </div>
                 </div>
                 {cp.sheets.map((s) =>

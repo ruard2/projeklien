@@ -5,6 +5,16 @@ import { useState, useTransition } from "react";
 import { addRuleFromVote, chatVote, rerunSheetAction, setVote } from "@/app/onderwyser/pdf-aksies";
 import type { ChatMsg, Omvang } from "@/lib/pdf-vergelyking/gesprek";
 
+type K = { id: string; sheet: string; criterion: string };
+/** Bedieneraksies vir die stemme en die gesprek (by verstek dié van die PDF-vergelyking). */
+export type KriteriumAksies = {
+  setVote: (k: K & { vote: 1 | -1 }) => Promise<{ vote: number | null; error?: string }>;
+  chatVote: (k: K & { text: string }) => Promise<{ chat?: ChatMsg[]; reel?: string; omvang?: Omvang; error?: string }>;
+  addRule: (k: K & { text: string; omvang: Omvang }) => Promise<{ ok?: true; error?: string }>;
+  rerun: (k: { id: string; sheet: string }) => Promise<{ ok?: true; error?: string }>;
+};
+const PDF_AKSIES: KriteriumAksies = { setVote, chatVote, addRule: addRuleFromVote, rerun: rerunSheetAction };
+
 const OMVANG: { value: Omvang; label: string }[] = [
   { value: "kriterium", label: "Net hierdie kriterium" },
   { value: "werkblad", label: "Hele werkblad" },
@@ -13,7 +23,8 @@ const OMVANG: { value: Omvang; label: string }[] = [
 
 /** Een kriterium in die uitslagtabel: KI-oordeel, 👍/👎, en by 👎 ’n gesprek met die KI wat tot ’n reël kan lei. */
 export default function PdfKriteriumRy(p: {
-  comparisonId: string;
+  /** Vergelyking-id (PDF) of terugvoer-id (groep in die app) */
+  id: string;
   sheet: string;
   criterionId: string;
   title: string;
@@ -23,7 +34,9 @@ export default function PdfKriteriumRy(p: {
   chat: ChatMsg[];
   ruleText: string | null;
   existingRule?: string | null;
+  actions?: KriteriumAksies;
 }) {
+  const A = p.actions ?? PDF_AKSIES;
   const router = useRouter();
   const [vote, setVoteState] = useState<number | null>(p.vote);
   const [open, setOpen] = useState(false);
@@ -36,12 +49,12 @@ export default function PdfKriteriumRy(p: {
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [pending, start] = useTransition();
-  const key = { id: p.comparisonId, sheet: p.sheet, criterion: p.criterionId };
+  const key = { id: p.id, sheet: p.sheet, criterion: p.criterionId };
 
   function up() {
     setError(null);
     start(async () => {
-      const r = await setVote({ ...key, vote: 1 });
+      const r = await A.setVote({ ...key, vote: 1 });
       if (r.error) return setError(r.error);
       setVoteState(r.vote);
       setOpen(false);
@@ -52,7 +65,7 @@ export default function PdfKriteriumRy(p: {
     setOpen(true);
     if (vote === -1) return;
     start(async () => {
-      const r = await setVote({ ...key, vote: -1 });
+      const r = await A.setVote({ ...key, vote: -1 });
       if (r.error) return setError(r.error);
       setVoteState(r.vote);
     });
@@ -62,7 +75,7 @@ export default function PdfKriteriumRy(p: {
     setError(null);
     const msg = text;
     start(async () => {
-      const r = await chatVote({ ...key, text: msg });
+      const r = await A.chatVote({ ...key, text: msg });
       if (r.error || !r.chat) return setError(r.error ?? "Iets het verkeerd geloop.");
       setChat(r.chat);
       setText("");
@@ -76,7 +89,7 @@ export default function PdfKriteriumRy(p: {
   function addRule() {
     setError(null);
     start(async () => {
-      const r = await addRuleFromVote({ ...key, text: rule, omvang });
+      const r = await A.addRule({ ...key, text: rule, omvang });
       if (r.error) return setError(r.error);
       setRuleAdded(rule);
       setRule("");
@@ -86,7 +99,7 @@ export default function PdfKriteriumRy(p: {
     setError(null);
     setInfo("Die KI beoordeel die werkblad weer met al die reëls… (±1 minuut)");
     start(async () => {
-      const r = await rerunSheetAction({ id: p.comparisonId, sheet: p.sheet });
+      const r = await A.rerun({ id: p.id, sheet: p.sheet });
       setInfo(null);
       if (r.error) return setError(r.error);
       router.refresh();

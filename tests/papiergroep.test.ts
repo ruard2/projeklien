@@ -59,3 +59,17 @@ test("invoer: ook dubbel gekodeer, enkele werkboek of ander omhulsel", async () 
   assert.throws(() => parseImport({ reels: [] }), /KI-reëls/);
   assert.throws(() => parseImport({ iets: 1 }), /ontvang: velde: iets/);
 });
+
+test("verder werk sodra die KI tevrede is, sonder aftekening", async () => {
+  const { progress, canSubmit } = await import("../lib/werkboeke/toegang");
+  const t = volGr9Haweloosheid;
+  const ready = (k: string) => ({ sheet: k, status: "READY" as const, readyHash: "h", currentHash: "h", started: true });
+  const busy = (k: string) => ({ sheet: k, status: "NOT_READY" as const, readyHash: null, currentHash: "x", started: true });
+  assert.equal(progress(t, [], []).unlockedUpTo, 1);
+  assert.equal(progress(t, [], ["ws1", "ws2", "ws3"].map(ready)).unlockedUpTo, 2);
+  assert.equal(progress(t, [], [...["ws1", "ws2", "ws3", "ws4", "ws5"].map(ready)]).unlockedUpTo, 3);
+  // Begin aan KP2, dan word WB3 weer verander: KP2 bly oop.
+  assert.equal(progress(t, [], [ready("ws1"), ready("ws2"), busy("ws3"), busy("ws4")]).unlockedUpTo, 2);
+  assert.equal(progress(t, [{ number: 1, status: "APPROVED" }], []).unlockedUpTo, 2);
+  assert.equal(canSubmit(t, 2, [], ["ws1", "ws2", "ws3", "ws4", "ws5"].map(ready)).ok, true);
+});

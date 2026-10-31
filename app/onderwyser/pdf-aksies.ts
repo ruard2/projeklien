@@ -7,7 +7,7 @@ import { db } from "@/lib/db";
 import { Prisma } from "@prisma/client";
 import { anonymisedSheetText, asExtracted, asResults, loadForFeedback, loadOwnComparison, rerunAll, rerunSheet, runExtraction, runFeedback, STALE_MS } from "@/lib/pdf-vergelyking/diens";
 import { chatAboutVerdict, type ChatMsg, type Omvang } from "@/lib/pdf-vergelyking/gesprek";
-import { logRuleEvent, rulesFor, RULE_MAX, scopeRules } from "@/lib/ki-reels";
+import { logRuleEvent, rulesFor, RULE_MAX, saveRuleFromChat, scopeRules } from "@/lib/ki-reels";
 import { cleanSheetData, jufText, membersFrom } from "@/lib/pdf-vergelyking/skema";
 import { getTemplate } from "@/lib/werkboeke/sjablone";
 import { isAdminRole, requireTeacher } from "@/lib/sessie";
@@ -174,40 +174,18 @@ export async function addRuleFromVote(k: VoteKey & { text: string; omvang: Omvan
   try {
     const c = await loadOwnComparison(k.id, t);
     const vote = await db.pdfVote.findUnique({ where: voteWhere(c.id, k.sheet, k.criterion, t.id) });
-    const note = vote?.reason ? `Uit gesprek ná 👎: “${vote.reason}”` : null;
-    // Een reël per kriterium (of per werkblad): ’n nuwe reël vervang die bestaande een (omkeerbaar).
-    if (k.omvang !== "werkboek") {
-      const same = await scopeRules(c.schoolId, c.templateKey, k.sheet, k.omvang === "kriterium" ? k.criterion : null);
-      if (same.length) {
-        const [keep, ...rest] = same;
-        if (keep.text !== text) {
-          await db.aiRule.update({ where: { id: keep.id }, data: { text } });
-          await logRuleEvent({ ruleId: keep.id, schoolId: c.schoolId, by: t, action: "gewysig", oldText: keep.text, newText: text, note: note ? `${note} (vervang bestaande reël)` : "Vervang bestaande reël" });
-        }
-        for (const r of rest) {
-          await db.aiRule.update({ where: { id: r.id }, data: { deletedAt: new Date() } });
-          await logRuleEvent({ ruleId: r.id, schoolId: c.schoolId, by: t, action: "geskrap", oldText: r.text, note: "Saamgevoeg in een reël per kriterium" });
-        }
-        await db.pdfVote.updateMany({ where: { comparisonId: c.id, sheet: k.sheet, criterionId: k.criterion, teacherId: t.id }, data: { ruleId: keep.id } });
-        revalidatePath(path(c.id));
-        revalidatePath("/onderwyser/ki-reels");
-        return { ok: true };
-      }
-    }
-    const rule = await db.aiRule.create({
-      data: {
-        schoolId: c.schoolId,
-        templateKey: c.templateKey,
-        sheet: k.omvang === "werkboek" ? null : k.sheet,
-        criterionId: k.omvang === "kriterium" ? k.criterion : null,
-        text,
-        createdById: t.id,
-        createdByName: t.name,
-        sourceComparisonId: c.id
-      }
+    const ruleId = await saveRuleFromChat({
+      schoolId: c.schoolId,
+      templateKey: c.templateKey,
+      sheet: k.sheet,
+      criterionId: k.criterion,
+      omvang: k.omvang,
+      text,
+      by: t,
+      note: vote?.reason ? `Uit gesprek ná 👎: “${vote.reason}”` : null,
+      sourceComparisonId: c.id
     });
-    await logRuleEvent({ ruleId: rule.id, schoolId: c.schoolId, by: t, action: "aangemaak", newText: text, note });
-    await db.pdfVote.updateMany({ where: { comparisonId: c.id, sheet: k.sheet, criterionId: k.criterion, teacherId: t.id }, data: { ruleId: rule.id } });
+    await db.pdfVote.updateMany({ where: { comparisonId: c.id, sheet: k.sheet, criterionId: k.criterion, teacherId: t.id }, data: { ruleId } });
     revalidatePath(path(c.id));
     revalidatePath("/onderwyser/ki-reels");
     return { ok: true };

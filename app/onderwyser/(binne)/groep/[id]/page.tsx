@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { loadWorkbook } from "@/lib/diens";
 import type { FeedbackResult } from "@/lib/ki";
 import { workbookOverview } from "@/lib/oorsig";
-import { requireTeacher } from "@/lib/sessie";
+import { hasDeveloperView, requireTeacher } from "@/lib/sessie";
 import { STATUS_LABEL } from "@/lib/pdf-vergelyking/status";
 
 type HistoryEntry = { action: string; by?: string; comment?: string; at: string };
@@ -67,7 +67,7 @@ export default async function OnderwyserGroep({ params }: { params: Promise<{ id
         </div>
       </div>
 
-      {pdfs.length ? (
+      {pdfs.length && (await hasDeveloperView(t)) ? (
         <div className="alert info" style={{ marginBottom: 16 }}>
           <b>{group.paperImport ? "Ingelees uit die papierwerkboek." : "Papierwerkboek:"}</b> KI beoordeel:{" "}
           {pdfs.map((p, i) => (
@@ -79,11 +79,11 @@ export default async function OnderwyserGroep({ params }: { params: Promise<{ id
         </div>
       ) : null}
 
-      <p className="muted" style={{ fontSize: ".88rem", margin: "0 0 10px" }}>Klik op ’n kontrolepunt om sy werkblaaie oop of toe te maak.</p>
+      <p className="muted" style={{ fontSize: ".88rem", margin: "0 0 10px" }}>Klik op ’n kontrolepunt om sy werkblaaie en die <b>aftekenknoppie</b> te sien.</p>
       {checkpoints.map((cp) => {
         const history = (Array.isArray(cp.record?.history) ? cp.record!.history : []) as unknown as HistoryEntry[];
         return (
-          <details className="cp-block cp-acc" key={cp.number} id={`kp${cp.number}`} style={{ scrollMarginTop: 90 }} open={cp.status === "SUBMITTED" || cp.status === "RETURNED" || cp.number === focusCp}>
+          <details className="cp-block cp-acc" key={cp.number} id={`kp${cp.number}`} style={{ scrollMarginTop: 90 }} open={cp.status === "SUBMITTED" || cp.status === "RETURNED" || cp.number === focusCp || (cp.satisfied && cp.status !== "APPROVED")}>
             <summary className={`cp-head ${cp.status === "APPROVED" ? "approved" : !cp.unlocked ? "locked" : ""}`}>
               <span className="num">{cp.status === "APPROVED" ? "✓" : cp.number}</span>
               <div>
@@ -92,7 +92,7 @@ export default async function OnderwyserGroep({ params }: { params: Promise<{ id
               </div>
               <div className="right">
                 <CpBadge status={cp.status} />
-                {!cp.unlocked ? <span className="badge">Nog gesluit vir die groep</span> : null}
+                {!cp.unlocked ? <span className="badge">Nog gesluit vir die groep</span> : cp.status !== "APPROVED" && cp.satisfied ? <span className="badge ok">KI tevrede</span> : null}
               </div>
             </summary>
 
@@ -121,24 +121,38 @@ export default async function OnderwyserGroep({ params }: { params: Promise<{ id
               );
             })}
 
-            {cp.status === "SUBMITTED" ? (
-              <div className="cp-foot" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16, alignItems: "start" }}>
-                <AksieVorm action={decide} submit={`Teken kontrolepunt ${cp.number} af`} variant="ok" confirmText={`Teken kontrolepunt ${cp.number} af as ${t.name}?`}>
-                  <input type="hidden" name="groupId" value={id} />
-                  <input type="hidden" name="n" value={cp.number} />
-                  <input type="hidden" name="decision" value="APPROVED" />
-                  <label className="lbl">Goedkeur</label>
-                  <textarea name="comment" rows={2} placeholder="Opsionele kommentaar vir die groep" />
-                </AksieVorm>
-                <AksieVorm action={decide} submit="Stuur terug na groep" variant="danger">
-                  <input type="hidden" name="groupId" value={id} />
-                  <input type="hidden" name="n" value={cp.number} />
-                  <input type="hidden" name="decision" value="RETURNED" />
-                  <label className="lbl">Nog nie reg nie</label>
-                  <textarea name="comment" rows={2} placeholder="Wat moet die groep nog aandag aan gee?" required />
-                </AksieVorm>
-              </div>
-            ) : null}
+            {cp.status !== "APPROVED" ? (() => {
+              const readyCount = cp.sheets.filter((s) => s.ready).length;
+              const msg =
+                cp.status === "SUBMITTED"
+                  ? "Die groep het hierdie kontrolepunt ingedien. Teken af of stuur terug met ’n kommentaar."
+                  : cp.satisfied
+                    ? "Al die werkblaaie is gereed volgens die KI; die groep kan reeds verder werk. Teken af as jy tevrede is."
+                    : !cp.unlocked
+                      ? "Die groep is nog nie by hierdie kontrolepunt nie."
+                      : `${readyCount} van ${cp.sheets.length} werkblaaie is gereed volgens die KI. Jy kan tog afteken as jy tevrede is.`;
+              return (
+                <div className="cp-foot" style={{ display: "block" }}>
+                  <p className="muted" style={{ margin: "0 0 10px", fontSize: ".9rem" }}>{msg}</p>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: 16, alignItems: "start" }}>
+                    <AksieVorm action={decide} submit={`✓ Teken kontrolepunt ${cp.number} af`} variant="ok" confirmText={`Teken kontrolepunt ${cp.number} af as ${t.name}?${cp.status !== "SUBMITTED" ? " Die groep het nog nie self ingedien nie." : ""}`}>
+                      <input type="hidden" name="groupId" value={id} />
+                      <input type="hidden" name="n" value={cp.number} />
+                      <input type="hidden" name="decision" value="APPROVED" />
+                      <textarea name="comment" rows={2} placeholder="Opsionele kommentaar vir die groep" />
+                    </AksieVorm>
+                    {cp.status === "SUBMITTED" ? (
+                      <AksieVorm action={decide} submit="Stuur terug na groep" variant="danger">
+                        <input type="hidden" name="groupId" value={id} />
+                        <input type="hidden" name="n" value={cp.number} />
+                        <input type="hidden" name="decision" value="RETURNED" />
+                        <textarea name="comment" rows={2} placeholder="Wat moet die groep nog aandag aan gee?" required />
+                      </AksieVorm>
+                    ) : null}
+                  </div>
+                </div>
+              );
+            })() : null}
 
             {cp.status === "APPROVED" && cp.record ? (
               <div className="cp-foot">

@@ -9,7 +9,7 @@ import { asExtracted, asResults, beforeAfter, loadOwnComparison, STALE_MS } from
 import VoorNa from "@/components/VoorNa";
 import { extractableSheets, jufText, membersFrom, studentOnlySheet } from "@/lib/pdf-vergelyking/skema";
 import { OORDEEL_LABEL, OOREENKOMS_LABEL, STATUS_LABEL } from "@/lib/pdf-vergelyking/status";
-import { requireTeacher } from "@/lib/sessie";
+import { requireDeveloper } from "@/lib/sessie";
 import { getTemplate } from "@/lib/werkboeke/sjablone";
 import { sheetToText } from "@/lib/werkboeke/teks";
 
@@ -22,7 +22,7 @@ function Lys({ items, empty = "—" }: { items: string[]; empty?: string }) {
 
 export default async function PdfVergelykingDetail({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const t = await requireTeacher();
+  const t = await requireDeveloper();
   const c = await loadOwnComparison(id, t);
   const template = getTemplate(c.templateKey);
   const extracted = asExtracted(c.extracted);
@@ -182,7 +182,7 @@ export default async function PdfVergelykingDetail({ params }: { params: Promise
                           return (
                             <PdfKriteriumRy
                               key={`${k.id}-${r.herbeoordeel ?? ""}`}
-                              comparisonId={c.id}
+                              id={c.id}
                               sheet={s.key}
                               criterionId={k.id}
                               title={crit?.title ?? k.id}

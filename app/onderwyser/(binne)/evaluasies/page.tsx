@@ -1,11 +1,11 @@
 import { runAllEvalCasesAction, runEvalCaseAction, toggleEvalCase } from "@/app/onderwyser/actions";
 import { db } from "@/lib/db";
-import { requireFeedbackReviewer } from "@/lib/sessie";
+import { requireDeveloper } from "@/lib/sessie";
 
 export const metadata = { title: "KI-toetse" };
 
 export default async function Evaluasies() {
-  const reviewer = await requireFeedbackReviewer();
+  const reviewer = await requireDeveloper();
   const cases = await db.aiEvalCase.findMany({ where: { schoolId: reviewer.schoolId }, orderBy: { createdAt: "desc" } });
   const passed = cases.filter((item) => item.lastPassed === true).length;
   const failed = cases.filter((item) => item.lastPassed === false).length;

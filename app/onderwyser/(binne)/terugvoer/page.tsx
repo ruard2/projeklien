@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { promoteFeedbackToEval, setAiReportStatus, setDevFeedbackStatus } from "@/app/onderwyser/actions";
 import { db } from "@/lib/db";
-import { requireFeedbackReviewer } from "@/lib/sessie";
+import { requireDeveloper } from "@/lib/sessie";
 import { AI_REPORT_LABELS } from "@/lib/terugvoer-beheer";
 import { devFeedbackRows } from "@/lib/terugvoer-uitvoer";
 
@@ -34,7 +34,7 @@ const ISSUE_LABEL: Record<string, string> = {
 const VERDICT_LABEL: Record<string, string> = { behaal: "Behaal", gedeeltelik: "Gedeeltelik", nie_behaal: "Nog nie behaal nie" };
 
 export default async function TerugvoerOorsig({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
-  const reviewer = await requireFeedbackReviewer();
+  const reviewer = await requireDeveloper();
   const sp = await searchParams;
   const status = STATUS.some((item) => item.key === sp.status) ? sp.status : "";
   const [rows, counts, reportCounts, reports] = await Promise.all([

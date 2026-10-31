@@ -13,10 +13,10 @@ export default async function MyTerugvoer() {
 
   return (
     <div className="container narrow">
-      <h1>My terugvoer</h1>
+      <h2>My terugvoer aan die ontwikkelaar</h2>
       <p className="muted">Hier sien jy wat jy oor die program of KI gestuur het, die verwerkingstatus en die ontwikkelaar se antwoord.</p>
       {items.length === 0 ? (
-        <div className="card empty">Jy het nog geen terugvoer gestuur nie. Gebruik die klets-ikoon of “Is die KI reg?” by ’n werkblad.</div>
+        <div className="card empty">Jy het nog geen terugvoer gestuur nie. Gebruik die rooi klets-knoppie regs onder.</div>
       ) : (
         <div style={{ display: "grid", gap: 14 }}>
           {items.map((item) => (

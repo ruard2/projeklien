@@ -150,6 +150,7 @@ model Feedback {
   inputSnapshot Json?
   createdAt DateTime @default(now())
   aiReports AiReport[]
+  votes     FeedbackVote[]
 
   @@index([groupId, sheet, createdAt])
   @@index([groupId, createdAt])
@@ -344,6 +345,26 @@ model PdfVote {
   updatedAt    DateTime      @updatedAt
 
   @@unique([comparisonId, sheet, criterionId, teacherId])
+}
+
+// 👍/👎 van ’n onderwyser op ’n KI-oordeel in die app (per kriterium), met die gesprek ná ’n duim af.
+model FeedbackVote {
+  id          String   @id @default(cuid())
+  feedbackId  String
+  feedback    Feedback @relation(fields: [feedbackId], references: [id], onDelete: Cascade)
+  groupId     String
+  sheet       String
+  criterionId String
+  teacherId   String
+  vote        Int
+  reason      String?
+  chat        Json?
+  ruleId      String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([feedbackId, criterionId, teacherId])
+  @@index([groupId])
 }
 
 // Reëls wat onderwysers by die KI-terugvoer voeg (bv. uit ’n gesprek ná ’n duim af).

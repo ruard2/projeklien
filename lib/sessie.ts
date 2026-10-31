@@ -130,3 +130,19 @@ export async function requireFeedbackReviewer() {
   if (!canReviewFeedback(t.role)) redirect("/onderwyser/my-terugvoer");
   return t;
 }
+
+/**
+ * Sien hierdie gebruiker die ontwikkelaarsfunksies (🧪)? Altyd vir die rol Ontwikkelaar. Solank die skool nog
+ * geen ontwikkelaarsrekening het nie, ook vir administrateurs (oorgang, sodat niks onbereikbaar raak nie).
+ */
+export async function hasDeveloperView(t: { role: TeacherRole; schoolId: string }): Promise<boolean> {
+  if (t.role === "DEVELOPER") return true;
+  if (t.role !== "ADMIN") return false;
+  return (await db.teacher.count({ where: { schoolId: t.schoolId, role: "DEVELOPER", active: true } })) === 0;
+}
+
+export async function requireDeveloper() {
+  const t = await requireTeacher();
+  if (!(await hasDeveloperView(t))) redirect("/onderwyser");
+  return t;
+}

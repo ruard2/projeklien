@@ -67,6 +67,15 @@ export default async function OnderwyserTuis({ searchParams }: { searchParams: P
   const approvedCps = groups.reduce((a, g) => a + g.checkpoints.filter((c) => c.status === "APPROVED").length, 0);
   const weekAgo = Date.now() - 7 * 86400_000;
   const activeWeek = groups.filter((g) => g.responses.some((r) => r.updatedAt.getTime() > weekAgo)).length;
+  // Kontrolepunte waar al die werkblaaie gereed is volgens die KI, maar wat nog nie afgeteken of ingedien is nie.
+  const kiDone = groups.flatMap((g) =>
+    tpl.checkpoints
+      .filter((c) => {
+        const st = g.checkpoints.find((x) => x.number === c.number)?.status;
+        return st !== "APPROVED" && st !== "SUBMITTED" && c.sheets.every((k) => g.responses.find((r) => r.sheet === k)?.status === "READY");
+      })
+      .map((c) => ({ g, n: c.number }))
+  );
 
   return (
     <div className="container">
@@ -74,7 +83,7 @@ export default async function OnderwyserTuis({ searchParams }: { searchParams: P
         <h1 className="grow" style={{ margin: 0 }}>
           Groepe
         </h1>
-        <Link className="btn sm" href="/onderwyser/groepe">Groepkodes</Link>
+        <Link className="btn sm" href="/onderwyser/groepe">+ Nuwe groepe / kodes</Link>
         <form action={goToGroupByCode} className="row" style={{ gap: 8 }}>
           <input type="text" name="code" placeholder="Soek groepkode" style={{ width: 180 }} aria-label="Soek groepkode" />
           <button className="btn sm">Soek</button>
@@ -145,6 +154,26 @@ export default async function OnderwyserTuis({ searchParams }: { searchParams: P
           <div className="l">aktief in die afgelope week</div>
         </div>
       </div>
+
+      {kiDone.length ? (
+        <details className="pv-acc" style={{ marginBottom: 18 }}>
+          <summary><span className="t">KI tevrede, nog nie afgeteken nie ({kiDone.length})</span></summary>
+          <div className="body">
+            <p className="muted" style={{ marginTop: 0, fontSize: ".88rem" }}>Hierdie groepe werk reeds verder. Teken af wanneer jy tevrede is.</p>
+            <table className="dtable">
+              <tbody>
+                {kiDone.map(({ g, n }) => (
+                  <tr key={`${g.id}-${n}`}>
+                    <td><span className="cpdot ACTIVE">{n}</span></td>
+                    <td><b>{g.name ?? "(nog geen naam)"}</b> <span className="muted mono" style={{ fontSize: ".8rem" }}>{g.code}</span></td>
+                    <td style={{ textAlign: "right" }}><Link className="btn sm" href={`/onderwyser/groep/${g.id}#kp${n}`}>Gaan na</Link></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </details>
+      ) : null}
 
       {klasse.length > 1 ? (
         <div className="tabs">

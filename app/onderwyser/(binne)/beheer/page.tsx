@@ -1,3 +1,4 @@
+import BeheerTabs from "@/components/BeheerTabs";
 import AksieVorm from "@/components/AksieVorm";
 import { changeOwnPassword, changeTeacherRole, createProject, createTeacher, toggleProject, toggleTeacher } from "@/app/onderwyser/actions";
 import { aiConfigured, aiModel } from "@/lib/ki";
@@ -20,7 +21,8 @@ export default async function Beheer() {
 
   return (
     <div className="container">
-      <h1>Bestuur</h1>
+      <h1 style={{ marginBottom: 8 }}>⚙️ Beheer</h1>
+      <BeheerTabs on="bestuur" />
 
       <div className="stats" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))" }}>
         <div className="stat">

@@ -358,7 +358,7 @@ function StatusBlock({
       <div className="status-big ok">
         <span className="ic">{ICON_OK}</span>
         <div>
-          Gereed vir onderwyser<small>{readyBy && readyBy !== "KI" ? `Goedgekeur deur ${readyBy}` : "Al die kriteria is behaal"}</small>
+          Gereed vir onderwyser<small>{readyBy && readyBy !== "KI" ? `Goedgekeur deur ${readyBy}` : "Die KI is tevrede: julle kan verder werk"}</small>
         </div>
       </div>
     );

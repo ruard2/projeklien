@@ -2,7 +2,7 @@
 
 import type { Checkpoint, Response, SheetStatus } from "@prisma/client";
 import { dataHash } from "./hash";
-import { canSubmit, cpStatus, sheetAccess, type Access } from "./werkboeke/toegang";
+import { canSubmit, checkpointSatisfied, cpStatus, progress, sheetAccess, type Access } from "./werkboeke/toegang";
 import type { Sheet, SheetData, Template } from "./werkboeke/tipes";
 import { completion } from "./werkboeke/volledigheid";
 import { cpStates, sheetStatesFor } from "./diens";
@@ -28,13 +28,15 @@ export type CheckpointOverview = {
   canSubmit: boolean;
   reason?: string;
   unlocked: boolean;
+  /** Al die werkblaaie is gereed volgens die KI/onderwyser (nog nie noodwendig afgeteken nie). */
+  satisfied: boolean;
 };
 
 function asData(v: unknown): SheetData {
   return v && typeof v === "object" && !Array.isArray(v) ? (v as SheetData) : {};
 }
 
-export function sheetOverview(sheet: Sheet, key: string, responses: Response[], cps: Checkpoint[], paperImport = false): SheetOverview {
+export function sheetOverview(sheet: Sheet, key: string, responses: Response[], cps: Checkpoint[], paperImport = false, unlockedUpTo?: number): SheetOverview {
   const r = responses.find((x) => x.sheet === key);
   const data = asData(r?.data);
   const status = r?.status ?? "NOT_STARTED";
@@ -44,7 +46,7 @@ export function sheetOverview(sheet: Sheet, key: string, responses: Response[], 
     status,
     ready: status === "READY" && r?.readyHash === dataHash(data),
     progress: completion(sheet, data),
-    access: sheetAccess(sheet, cpStates(cps), { paperImport }),
+    access: sheetAccess(sheet, cpStates(cps), { paperImport, unlockedUpTo }),
     updatedAt: r?.updatedAt ?? null
   };
 }
@@ -52,6 +54,7 @@ export function sheetOverview(sheet: Sheet, key: string, responses: Response[], 
 export function workbookOverview(t: Template, responses: Response[], cps: Checkpoint[], paperImport = false) {
   const states = cpStates(cps);
   const sheetStates = sheetStatesFor(t, responses);
+  const { unlockedUpTo } = progress(t, states, sheetStates);
   const checkpoints: CheckpointOverview[] = t.checkpoints.map((def) => {
     const check = canSubmit(t, def.number, states, sheetStates);
     return {
@@ -60,13 +63,14 @@ export function workbookOverview(t: Template, responses: Response[], cps: Checkp
       statement: def.statement,
       status: cpStatus(states, def.number),
       record: cps.find((c) => c.number === def.number) ?? null,
-      sheets: def.sheets.map((k) => sheetOverview(t.sheets.find((s) => s.key === k)!, k, responses, cps, paperImport)),
+      sheets: def.sheets.map((k) => sheetOverview(t.sheets.find((s) => s.key === k)!, k, responses, cps, paperImport, unlockedUpTo)),
       canSubmit: check.ok,
       reason: check.reason,
-      unlocked: def.number === 1 || cpStatus(states, def.number - 1) === "APPROVED"
+      unlocked: def.number <= unlockedUpTo,
+      satisfied: checkpointSatisfied(t, def.number, sheetStates)
     };
   });
   const approved = checkpoints.filter((c) => c.status === "APPROVED").length;
-  const current = checkpoints.find((c) => c.status !== "APPROVED") ?? null;
+  const current = checkpoints.find((c) => c.status !== "APPROVED" && !c.satisfied && c.unlocked) ?? checkpoints.find((c) => c.status !== "APPROVED") ?? null;
   return { checkpoints, approved, current };
 }

@@ -35,10 +35,10 @@ export default async function KiReels({ searchParams }: { searchParams: Promise<
   return (
     <div className="container">
       <div className="row" style={{ gap: 10, flexWrap: "wrap", marginBottom: 8 }}>
-        <div className="grow"><div className="crumb"><Link href="/onderwyser/ki">KI oplei</Link></div><h1 style={{ margin: 0 }}>KI-reëls</h1></div>
+        <div className="grow"><h1 style={{ margin: 0 }}>KI-reëls</h1></div>
       </div>
       <p className="muted" style={{ maxWidth: "80ch" }}>
-        Reëls wat onderwysers by die KI-terugvoer gevoeg het, meestal uit ’n gesprek ná ’n 👎 by <Link href="/onderwyser/pdf-vergelyking">KI beoordeel</Link>. Aktiewe reëls geld <b>dadelik</b> vir alle KI-terugvoer op hierdie werkboek, ook in die leerders se app. Elke handeling word aangeteken en kan teruggedraai word; geskrapte reëls kan herstel word.
+        Reëls wat onderwysers by die KI-terugvoer gevoeg het, meestal uit ’n gesprek ná ’n 👎 by ’n groep se KI-terugvoer (per werkblad). Aktiewe reëls geld <b>dadelik</b> vir alle KI-terugvoer op hierdie werkboek, ook in die leerders se app. Elke handeling word aangeteken en kan teruggedraai word; geskrapte reëls kan herstel word.
       </p>
       <div className="tabs">
         <Link href={`/onderwyser/ki-reels?werkboek=${encodeURIComponent(ALL_WORKBOOKS)}`} className={isGlobal ? "on" : ""}>🌐 Alle werkboeke (gees)</Link>

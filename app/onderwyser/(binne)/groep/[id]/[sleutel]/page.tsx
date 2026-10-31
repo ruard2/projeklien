@@ -3,7 +3,10 @@ import { notFound } from "next/navigation";
 import AksieVorm from "@/components/AksieVorm";
 import { SheetBadge } from "@/components/Kentekens";
 import { fmtWhen, Kriteria, TerugvoerInhoud } from "@/components/Terugvoer";
-import { KiTerugvoerVorm } from "@/components/OntwikkelaarTerugvoer";
+import PdfKriteriumRy from "@/components/PdfKriteriumRy";
+import { fbAddRule, fbChatVote, fbRerun, fbSetVote } from "@/app/onderwyser/groep-ki-aksies";
+import type { ChatMsg } from "@/lib/pdf-vergelyking/gesprek";
+import { OORDEEL_LABEL } from "@/lib/pdf-vergelyking/status";
 import WerkbladVorm, { type TeacherNotes } from "@/components/WerkbladVorm";
 import { markReady, teacherNote } from "@/app/onderwyser/actions";
 import { db } from "@/lib/db";
@@ -51,6 +54,16 @@ export default async function OnderwyserWerkblad({
   const data = ((version ? version.data : response?.data) ?? {}) as SheetData;
   const selectedFb = (sp.t ? feedbacks.find((f) => f.id === sp.t) : null) ?? feedbacks[0] ?? null;
 
+  const selResult = selectedFb && selectedFb.source !== "volledigheid" ? (selectedFb.result as unknown as FeedbackResult) : null;
+  const [myVotes, scopeRuleRows] = selResult
+    ? await Promise.all([
+        db.feedbackVote.findMany({ where: { feedbackId: selectedFb!.id, teacherId: teacher.id } }),
+        db.aiRule.findMany({ where: { schoolId: teacher.schoolId, templateKey: group.project.templateKey, sheet: sheet.key, active: true, deletedAt: null }, select: { criterionId: true, text: true, id: true } })
+      ])
+    : [[], []];
+  const voteRuleTexts = new Map(scopeRuleRows.map((r) => [r.id, r.text]));
+  const critRule = new Map(scopeRuleRows.filter((r) => r.criterionId).map((r) => [r.criterionId!, r.text]));
+
   const currentHash = dataHash((response?.data ?? {}) as SheetData);
   const ready = response?.status === "READY" && response.readyHash === currentHash;
   const cpState = sheet.checkpoint ? cpStatus(group.checkpoints.map((c) => ({ number: c.number, status: c.status })), sheet.checkpoint) : null;
@@ -97,6 +110,41 @@ export default async function OnderwyserWerkblad({
             </div>
           ) : null}
           <WerkbladVorm sheet={sheet} sheetKey={sheetKey} data={data} readOnly members={members} photos={photos} teacherNotes={notes} />
+          {selResult?.kriteria?.length ? (
+            <div className="card" style={{ marginTop: 16 }}>
+              <h3 style={{ marginTop: 0 }}>Klop die KI se oordeel?</h3>
+              <p className="muted" style={{ marginTop: 0, fontSize: ".88rem" }}>
+                Gee 👍 of 👎 per kriterium{feedbacks.length > 1 ? " (vir die terugvoer wat regs gekies is)" : ""}. By 👎 verduidelik jy kort wat jy wou sien; die KI stel ’n reël voor wat dadelik vir alle groepe geld as jy dit byvoeg.
+              </p>
+              <div style={{ overflowX: "auto" }}>
+                <table className="pv-crit">
+                  <thead><tr><th>Kriterium</th><th>KI</th><th>Terugvoer</th><th>Klop dit?</th></tr></thead>
+                  <tbody>
+                    {selResult.kriteria.map((k) => {
+                      const crit = sheet.criteria.find((c) => c.id === k.id);
+                      const v = myVotes.find((x) => x.criterionId === k.id);
+                      return (
+                        <PdfKriteriumRy
+                          key={`${selectedFb!.id}-${k.id}`}
+                          id={selectedFb!.id}
+                          sheet={sheet.key}
+                          criterionId={k.id}
+                          title={crit?.title ?? k.id}
+                          verdict={OORDEEL_LABEL[k.oordeel] ?? { text: k.oordeel, cls: "plain" }}
+                          feedback={k.terugvoer}
+                          vote={v?.vote ?? null}
+                          chat={(v?.chat as ChatMsg[] | null) ?? []}
+                          ruleText={v?.ruleId ? voteRuleTexts.get(v.ruleId) ?? null : null}
+                          existingRule={critRule.get(k.id) ?? null}
+                          actions={{ setVote: fbSetVote, chatVote: fbChatVote, addRule: fbAddRule, rerun: fbRerun }}
+                        />
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          ) : null}
         </div>
 
         <aside className="side">
@@ -166,9 +214,6 @@ export default async function OnderwyserWerkblad({
               ) : (
                 <p className="muted">Geen terugvoer vir hierdie bladsy nie.</p>
               )}
-              {selectedFb ? (
-                <KiTerugvoerVorm groupId={id} sheet={sheetKey} feedbackId={selectedFb?.id ?? null} criteria={sheet.criteria.map((c) => ({ id: c.id, title: c.title }))} />
-              ) : null}
               {feedbacks.length > 1 ? (
                 <details style={{ marginTop: 14 }}>
                   <summary className="muted" style={{ fontSize: ".88rem" }}>
