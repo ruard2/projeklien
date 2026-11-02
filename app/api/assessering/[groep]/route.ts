@@ -14,10 +14,10 @@ export async function POST(req: Request, { params }: { params: Promise<{ groep: 
     if (!t) return fout("Meld asseblief weer aan.", 401);
     if (!(await allow(`assessering:${t.schoolId}`, 400, 3600))) return fout("Te veel beoordelings hierdie uur. Probeer later weer.", 429);
     const { groep } = await params;
-    const body = (await req.json().catch(() => ({}))) as { force?: unknown };
-    const outcome = await runAssessment(t.schoolId, groep, t.name, body.force === true);
+    const body = (await req.json().catch(() => ({}))) as { force?: unknown; fotos?: unknown };
+    const outcome = await runAssessment(t.schoolId, groep, t.name, { force: body.force === true, withPhotos: body.fotos === true });
     if (outcome.status === "klaar") {
-      await logActivity(t, "assessering", `KI het ’n groep volgens die rubriek beoordeel (${outcome.total}/50)`, { link: `/onderwyser/assessering/${groep}` });
+      await logActivity(t, "assessering", `KI het ’n groep volgens die rubriek beoordeel (${outcome.total}/50${outcome.photos ? `, met ${outcome.photos} foto’s` : ""})`, { link: `/onderwyser/assessering/${groep}` });
     }
     return NextResponse.json(outcome);
   });

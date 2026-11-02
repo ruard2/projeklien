@@ -5,7 +5,7 @@ import { BeoordeelEen } from "@/components/AssesseringKnoppies";
 import DrukKnoppie from "@/components/DrukKnoppie";
 import { fmtWhen } from "@/components/Terugvoer";
 import { workbookHash, type MarkHistory, type ScoreEntry } from "@/lib/assessering/diens";
-import { hasWork, type AssessmentResult } from "@/lib/assessering/ki";
+import { hasWork, photosToShow, type AssessmentResult } from "@/lib/assessering/ki";
 import { rubricFor } from "@/lib/assessering/rubriek";
 import { db } from "@/lib/db";
 import { loadWorkbook } from "@/lib/diens";
@@ -24,7 +24,7 @@ export default async function AssesseringGroep({ params }: { params: Promise<{ g
   const [assessment, mark, photos] = await Promise.all([
     db.rubricAssessment.findFirst({ where: { groupId: groep, rubricKey: rubric.key }, orderBy: { createdAt: "desc" } }),
     db.rubricMark.findUnique({ where: { groupId_rubricKey: { groupId: groep, rubricKey: rubric.key } } }),
-    db.photo.findMany({ where: { groupId: groep }, select: { id: true, sheet: true, caption: true }, orderBy: { createdAt: "asc" } })
+    db.photo.findMany({ where: { groupId: groep }, select: { id: true, sheet: true, caption: true, size: true }, orderBy: { createdAt: "asc" } })
   ]);
   const result = assessment?.result as unknown as AssessmentResult | undefined;
   const hash = workbookHash(group.responses);
@@ -32,6 +32,7 @@ export default async function AssesseringGroep({ params }: { params: Promise<{ g
   const markStale = Boolean(mark && assessment && mark.assessmentId && mark.assessmentId !== assessment.id);
   const work = hasWork({ template, responses: group.responses, photos: photos.map((p) => ({ sheet: p.sheet, field: "", caption: p.caption })) });
   const history = (Array.isArray(mark?.history) ? mark!.history : []) as unknown as MarkHistory[];
+  const seenPhotos = result?.fotos_gesien ?? 0;
   const named = members.map((m) => m.trim()).filter(Boolean);
 
   return (
@@ -56,12 +57,12 @@ export default async function AssesseringGroep({ params }: { params: Promise<{ g
             </Link>
             <DrukKnoppie />
           </div>
-          {work ? <BeoordeelEen groupId={groep} again={Boolean(assessment)} /> : null}
+          {work ? <BeoordeelEen groupId={groep} again={Boolean(assessment)} photoCount={photosToShow(photos).length} /> : null}
         </div>
       </div>
 
       <div className="alert info" style={{ marginBottom: 16 }}>
-        <b>Die KI gee net ’n voorstel; julle neem die besluit.</b> Dit lees werkblad 1–14 sonder name of foto’s en beoordeel slegs volgens die rubriek. Leerders sien hierdie bladsy nooit.
+        <b>Die KI gee net ’n voorstel; julle neem die besluit.</b> {seenPhotos ? `Dit het werkblad 1–14 sonder name gelees en ${seenPhotos} foto(’s) gesien, en beoordeel slegs volgens die rubriek.` : "Dit lees werkblad 1–14 sonder name en, tensy julle dit toelaat, sonder foto’s, en beoordeel slegs volgens die rubriek."} Leerders sien hierdie bladsy nooit.
       </div>
 
       {!work ? <div className="card empty">Hierdie groep het nog niks op werkblad 1–14 ingevul nie. Daar is niks om te beoordeel nie.</div> : null}
@@ -94,7 +95,7 @@ export default async function AssesseringGroep({ params }: { params: Promise<{ g
       {photos.length ? (
         <details className="pv-acc no-print" style={{ marginBottom: 16 }}>
           <summary>
-            <span className="t">Foto’s van die groep ({photos.length}): die KI sien dit nie, gaan dit self na</span>
+            <span className="t">Foto’s van die groep ({photos.length}): {seenPhotos ? `die KI het ${seenPhotos} gesien; gaan dit ook self na` : "die KI het dit nie gesien nie, gaan dit self na"}</span>
           </summary>
           <div className="body">
             <div className="photos">

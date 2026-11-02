@@ -3,9 +3,10 @@
 
 import type { Prisma } from "@prisma/client";
 import { db } from "../db";
+import { getObject } from "../berging";
 import { DiensFout, loadWorkbook } from "../diens";
 import { dataHash } from "../hash";
-import { ASSESS_PROMPT_VERSION, ASSESSED_SHEETS, assessWorkbook, buildEvidence, hasWork, type AssessmentResult, type EvidenceInput } from "./ki";
+import { ASSESS_PROMPT_VERSION, ASSESSED_SHEETS, assessWorkbook, buildEvidence, hasWork, photosToShow, type AssessmentImage, type AssessmentResult, type EvidenceInput } from "./ki";
 import { isValidScore, rubricFor, totalOf, type Rubric } from "./rubriek";
 
 export type ScoreEntry = { punt: number; nota?: string };
@@ -17,12 +18,13 @@ export function workbookHash(responses: { sheet: string; data: unknown }[]): str
   return dataHash(byKey);
 }
 
-async function evidenceInputFor(groupId: string): Promise<{ input: EvidenceInput; rubric: Rubric; schoolId: string }> {
+async function evidenceInputFor(groupId: string) {
   const { group, template, members } = await loadWorkbook(groupId);
-  const photos = await db.photo.findMany({ where: { groupId }, select: { sheet: true, field: true, caption: true } });
+  const photos = await db.photo.findMany({ where: { groupId }, orderBy: { createdAt: "asc" }, select: { id: true, sheet: true, field: true, caption: true, mime: true, size: true, storage: true, storageKey: true } });
   return {
     rubric: rubricFor(template.key),
     schoolId: group.project.schoolId,
+    photos,
     input: {
       template,
       project: { phenomenon: group.project.phenomenon, question: group.project.question, partner: group.project.partner, grade: group.project.grade },
@@ -31,30 +33,47 @@ async function evidenceInputFor(groupId: string): Promise<{ input: EvidenceInput
       photos,
       checkpoints: group.checkpoints.map((c) => ({ number: c.number, status: c.status })),
       paperImport: group.paperImport
-    }
+    } satisfies EvidenceInput
   };
 }
 
-export type RunOutcome = { status: "klaar" | "reeds" | "leeg"; total?: number };
+async function loadImages(photos: { id: string; sheet: string; caption: string | null; mime: string; storage: string; storageKey: string | null }[]): Promise<AssessmentImage[]> {
+  const stored = await db.photo.findMany({ where: { id: { in: photos.filter((p) => p.storage !== "s3").map((p) => p.id) } }, select: { id: true, bytes: true } });
+  const images = await Promise.all(
+    photos.map(async (p): Promise<AssessmentImage | null> => {
+      const bytes = p.storage === "s3" && p.storageKey ? await getObject(p.storageKey) : stored.find((x) => x.id === p.id)?.bytes;
+      return bytes ? { sheet: p.sheet, caption: p.caption, mime: p.mime, bytes: Buffer.from(bytes) } : null;
+    })
+  );
+  return images.filter((i): i is AssessmentImage => i !== null);
+}
 
-/** Laat die KI een groep beoordeel. Sonder `force` word ’n onveranderde werkboek nie weer betaal nie. */
-export async function runAssessment(schoolId: string, groupId: string, by: string, force = false): Promise<RunOutcome> {
-  const { input, rubric, schoolId: groupSchool } = await evidenceInputFor(groupId);
+export type RunOutcome = { status: "klaar" | "reeds" | "leeg"; total?: number; photos?: number };
+
+/**
+ * Laat die KI een groep beoordeel. Sonder `force` word ’n onveranderde werkboek nie weer betaal nie.
+ * Foto’s gaan net na die KI as die onderwyser dit vir hierdie beoordeling uitdruklik toelaat (`withPhotos`).
+ */
+export async function runAssessment(schoolId: string, groupId: string, by: string, options: { force?: boolean; withPhotos?: boolean } = {}): Promise<RunOutcome> {
+  const { input, rubric, photos, schoolId: groupSchool } = await evidenceInputFor(groupId);
   if (groupSchool !== schoolId) throw new DiensFout("Groep nie gevind nie.", 404);
   if (!hasWork(input)) return { status: "leeg" };
 
   const hash = workbookHash(input.responses);
-  if (!force) {
+  const shown = options.withPhotos ? photosToShow(photos) : [];
+  if (!options.force) {
     const existing = await db.rubricAssessment.findFirst({
       where: { groupId, rubricKey: rubric.key, rubricVersion: rubric.version, workbookHash: hash },
       orderBy: { createdAt: "desc" },
-      select: { aiTotal: true, source: true }
+      select: { aiTotal: true, source: true, result: true }
     });
-    if (existing && existing.source !== "toetsmodus") return { status: "reeds", total: existing.aiTotal };
+    const before = (existing?.result as unknown as AssessmentResult | undefined)?.fotos_gesien ?? 0;
+    if (existing && existing.source !== "toetsmodus" && before >= shown.length) return { status: "reeds", total: existing.aiTotal };
   }
 
   const evidence = buildEvidence(input);
-  const { result, source } = await assessWorkbook(rubric, input, evidence);
+  const { result, source } = await assessWorkbook(rubric, input, evidence, await loadImages(shown));
+  const seen = result.fotos_gesien ?? 0;
   await db.rubricAssessment.create({
     data: {
       groupId,
@@ -65,11 +84,11 @@ export async function runAssessment(schoolId: string, groupId: string, by: strin
       promptVer: ASSESS_PROMPT_VERSION,
       aiTotal: result.totaal,
       result: result as unknown as Prisma.InputJsonValue,
-      inputText: evidence,
+      inputText: seen ? `${evidence}\n\n=== FOTO’S ===\nDie KI het ook ${seen} foto(’s) gesien, soos die onderwyser toegelaat het: ${shown.map((p) => `WB${p.sheet.replace(/\D/g, "")}`).join(", ")}.` : evidence,
       createdBy: by
     }
   });
-  return { status: "klaar", total: result.totaal };
+  return { status: "klaar", total: result.totaal, photos: seen };
 }
 
 export function parseScores(rubric: Rubric, raw: Record<string, unknown>): Record<string, ScoreEntry> {

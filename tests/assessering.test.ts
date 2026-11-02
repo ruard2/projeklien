@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildEvidence, hasWork, normaliseAssessment, quoteFound, type EvidenceInput } from "../lib/assessering/ki";
+import { createServer } from "node:http";
+import { assessmentMessages, assessmentSystemPrompt, assessWorkbook, buildEvidence, hasWork, MAX_ASSESS_PHOTOS, normaliseAssessment, photosToShow, quoteFound, type EvidenceInput } from "../lib/assessering/ki";
 import { csvCell, parseScores, workbookHash } from "../lib/assessering/diens";
 import { isValidScore, levelForScore, RUBRIEK_A, rubricFor, totalOf } from "../lib/assessering/rubriek";
 import { getTemplate } from "../lib/werkboeke/sjablone";
@@ -123,4 +124,58 @@ test("CSV kan nie formules uit leerdersteks uitvoer nie", () => {
   assert.equal(csvCell('sê "hallo"'), `"sê ""hallo"""`);
   assert.equal(csvCell(null), `""`);
   assert.equal(csvCell(35), `"35"`);
+});
+
+const image = { sheet: "ws10", caption: "Anke by die rommel", mime: "image/jpeg", bytes: Buffer.from("foto") };
+
+test("foto’s gaan net na die KI as hulle uitdruklik saamgestuur word", () => {
+  const without = assessmentMessages(RUBRIEK_A, input(), "werkboek", []);
+  assert.equal(typeof without[1].content, "string");
+  assert.match(String(without[0].content), /nie aan jou gewys nie/);
+
+  const withPhoto = assessmentMessages(RUBRIEK_A, input(), "werkboek", [image]);
+  const parts = withPhoto[1].content as { type: string; text?: string; image_url?: { url: string } }[];
+  assert.equal(parts.filter((p) => p.type === "image_url")[0].image_url?.url, `data:image/jpeg;base64,${image.bytes.toString("base64")}`);
+  assert.ok(parts.some((p) => p.text?.startsWith("Foto 1 (WB10)")));
+  assert.ok(!JSON.stringify(parts).includes("Anke"), "byskrifte word steeds geanonimiseer");
+  assert.match(String(withPhoto[0].content), /Beskryf of identifiseer nooit mense nie/);
+});
+
+test("die KI weet as dit nie al die foto’s gesien het nie", () => {
+  const photos = [{ sheet: "ws2", field: "f", caption: null }, { sheet: "ws10", field: "f", caption: null }, { sheet: "ws15:1", field: "f", caption: null }];
+  assert.match(assessmentSystemPrompt(RUBRIEK_A, input({ photos }), 1), /net 1 van die 2 foto/);
+  assert.doesNotMatch(assessmentSystemPrompt(RUBRIEK_A, input({ photos }), 2), /van die 2 foto/);
+});
+
+test("slegs foto’s van werkblad 1–14 word gekies, in volgorde en binne die perke", () => {
+  const picked = photosToShow([{ sheet: "ws15:1", size: 1 }, { sheet: "ws10", size: 1 }, { sheet: "ws2", size: 1 }]);
+  assert.deepEqual(picked.map((p) => p.sheet), ["ws2", "ws10"]);
+  assert.equal(photosToShow(Array.from({ length: 40 }, () => ({ sheet: "ws2", size: 1 }))).length, MAX_ASSESS_PHOTOS);
+  assert.equal(photosToShow(Array.from({ length: 5 }, () => ({ sheet: "ws2", size: 10 * 1024 * 1024 }))).length, 3);
+});
+
+test("die versoek met foto’s bereik die API en die antwoord word verwerk", async () => {
+  let received: { messages: { content: unknown }[] } | undefined;
+  const server = createServer((req, res) => {
+    let body = "";
+    req.on("data", (d) => (body += d));
+    req.on("end", () => {
+      received = JSON.parse(body);
+      res.setHeader("Content-Type", "application/json");
+      res.end(JSON.stringify({ id: "x", object: "chat.completion", choices: [{ index: 0, message: { role: "assistant", content: JSON.stringify(valid()) } }] }));
+    });
+  });
+  await new Promise<void>((r) => server.listen(0, r));
+  process.env.OPENAI_API_KEY = "toets";
+  process.env.OPENAI_BASE_URL = `http://127.0.0.1:${(server.address() as { port: number }).port}/v1`;
+  try {
+    const { result } = await assessWorkbook(RUBRIEK_A, input(), "werkboek", [image]);
+    assert.equal(result.fotos_gesien, 1);
+    assert.equal(result.totaal, 35);
+    assert.ok(JSON.stringify(received?.messages[1].content).includes("data:image/jpeg;base64,"));
+  } finally {
+    delete process.env.OPENAI_API_KEY;
+    delete process.env.OPENAI_BASE_URL;
+    server.close();
+  }
 });

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { BeoordeelAlles } from "@/components/AssesseringKnoppies";
 import { workbookHash, type ScoreEntry } from "@/lib/assessering/diens";
-import { hasWork, type AssessmentResult } from "@/lib/assessering/ki";
+import { hasWork, photosToShow, type AssessmentResult } from "@/lib/assessering/ki";
 import { rubricFor } from "@/lib/assessering/rubriek";
 import { db } from "@/lib/db";
 import { aiConfigured } from "@/lib/ki";
@@ -30,7 +30,7 @@ export default async function AssesseringOorsig({ searchParams }: { searchParams
       members: true,
       paperImport: true,
       responses: { select: { sheet: true, data: true } },
-      photos: { select: { sheet: true } },
+      photos: { select: { sheet: true, size: true } },
       rubricMarks: { where: { rubricKey: rubric.key }, select: { status: true, total: true, scores: true } },
       rubricAssessments: { where: { rubricKey: rubric.key, rubricVersion: rubric.version }, orderBy: { createdAt: "desc" }, take: 1, select: { aiTotal: true, workbookHash: true, source: true, result: true } }
     }
@@ -43,7 +43,9 @@ export default async function AssesseringOorsig({ searchParams }: { searchParams
       const work = hasWork({ template, responses: g.responses, photos: g.photos.map((p) => ({ sheet: p.sheet, field: "", caption: null })) });
       const changed = Boolean(assessment && assessment.workbookHash !== workbookHash(g.responses));
       const current = Boolean(assessment && assessment.source !== "toetsmodus" && !changed);
-      return { g, assessment, work, current, changed, mark: g.rubricMarks[0] ?? null, ai: assessment?.result as unknown as AssessmentResult | undefined };
+      const ai = assessment?.result as unknown as AssessmentResult | undefined;
+      const photosDue = work && photosToShow(g.photos).length > (current ? ai?.fotos_gesien ?? 0 : 0);
+      return { g, assessment, work, current, changed, photosDue, mark: g.rubricMarks[0] ?? null, ai };
     });
   const pending = rows.filter((r) => r.work && !r.current);
   const finals = rows.filter((r) => r.mark?.status === "FINAAL");
@@ -76,7 +78,7 @@ export default async function AssesseringOorsig({ searchParams }: { searchParams
       </div>
 
       <div style={{ marginBottom: 16 }}>
-        <BeoordeelAlles groups={pending.map((r) => ({ id: r.g.id, name: r.g.name ?? r.g.code }))} />
+        <BeoordeelAlles groups={rows.filter((r) => r.work && (!r.current || r.photosDue)).map((r) => ({ id: r.g.id, name: r.g.name ?? r.g.code, pending: !r.current, photosDue: r.photosDue }))} />
       </div>
 
       {klasse.length > 1 ? (
@@ -111,6 +113,7 @@ export default async function AssesseringOorsig({ searchParams }: { searchParams
                       <div className="muted" style={{ fontSize: ".8rem" }}>
                         {(Array.isArray(g.members) ? (g.members as string[]) : []).filter(Boolean).join(", ") || "—"} · <span className="mono">{g.code}</span>
                         {g.paperImport ? " · papier" : ""}
+                        {ai?.fotos_gesien ? ` · KI het ${ai.fotos_gesien} foto’s gesien` : ""}
                       </div>
                     </td>
                     <td>{g.klas ?? "—"}</td>
