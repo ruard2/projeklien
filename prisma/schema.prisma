@@ -87,6 +87,8 @@ model Group {
   checkpoints Checkpoint[]
   photos      Photo[]
   aiReports   AiReport[]
+  rubricAssessments RubricAssessment[]
+  rubricMarks RubricMark[]
 
   @@index([projectId, archived])
 }
@@ -428,4 +430,51 @@ model TeacherActivity {
 
   @@index([schoolId, at])
   @@index([teacherId, at])
+}
+
+// KI-voorstel volgens die assesseringsrubriek (een ry per beoordeling, sodat vorige voorstelle bewaar bly).
+// Nooit sigbaar vir leerdergroepe nie.
+model RubricAssessment {
+  id            String   @id @default(cuid())
+  groupId       String
+  group         Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  rubricKey     String
+  rubricVersion Int
+  // Vingerafdruk van werkblad 1–14 toe dit beoordeel is
+  workbookHash  String
+  source        String
+  promptVer     String
+  aiTotal       Int
+  // Sien lib/assessering/ki.ts → AssessmentResult
+  result        Json
+  // Die presiese geanonimiseerde teks wat die KI gelees het
+  inputText     String
+  createdBy     String?
+  createdAt     DateTime @default(now())
+
+  @@index([groupId, rubricKey, createdAt])
+}
+
+// Die onderwysers se punt per groep. Die KI gee net ’n voorstel; dit is die besluit.
+model RubricMark {
+  id           String    @id @default(cuid())
+  groupId      String
+  group        Group     @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  rubricKey    String
+  // "KONSEP" | "FINAAL"
+  status       String    @default("KONSEP")
+  // { k1: { punt, nota? }, ... }
+  scores       Json
+  total        Int
+  comment      String?
+  assessors    String?
+  assessmentId String?
+  teacherId    String?
+  teacherName  String
+  finalisedAt  DateTime?
+  history      Json      @default("[]")
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@unique([groupId, rubricKey])
 }

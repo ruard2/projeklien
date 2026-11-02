@@ -14,7 +14,8 @@ export type ActivityType =
   | "terugvoer"
   | "pdf"
   | "duim"
-  | "ontwikkelaar";
+  | "ontwikkelaar"
+  | "assessering";
 
 export const ACTIVITY_LABEL: Record<string, string> = {
   aanmeld: "Aangemeld",
@@ -28,7 +29,8 @@ export const ACTIVITY_LABEL: Record<string, string> = {
   pdf: "KI beoordeel",
   duim: "Duimpie / gesprek",
   ontwikkelaar: "Ontwikkelaar",
-  reel: "KI-reël"
+  reel: "KI-reël",
+  assessering: "Assessering"
 };
 
 export async function logActivity(

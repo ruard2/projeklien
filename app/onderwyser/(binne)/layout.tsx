@@ -23,6 +23,7 @@ export default async function OnderwyserLayout({ children }: { children: React.R
           primary={
             <>
               <Link href="/onderwyser">Groepe</Link>
+              <Link href="/onderwyser/assessering">Assessering</Link>
               <Link href="/onderwyser/ki-reels">KI-reëls</Link>
               <Link href="/onderwyser/meldings">Meldings{meldings ? ` (${meldings})` : ""}</Link>
               {admin ? <Link href="/onderwyser/beheer" title="Beheer">⚙️ Beheer{openRuleChanges ? ` (${openRuleChanges})` : ""}</Link> : null}

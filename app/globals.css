@@ -593,3 +593,21 @@ details > summary { cursor: pointer; font-weight: 600; }
 .hub a:hover { border-color: var(--blue); }
 .hub a b { display: block; margin-bottom: 4px; }
 .hub a span { font-size: .86rem; color: var(--muted); }
+
+/* ---------------------------------------------------------------- Assessering */
+.rb-section > .body { display: grid; gap: 14px; }
+.rb-levels { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.rb-level { border: 1px solid var(--line); border-radius: 10px; padding: 10px; font-size: .84rem; line-height: 1.4; background: #fcfbf8; display: flex; flex-direction: column; gap: 6px; }
+.rb-level-head { font-size: .8rem; color: var(--ink-2); }
+.rb-level.ai { border-color: var(--blue); background: var(--blue-soft); }
+.rb-level.mine { border-color: var(--ok); box-shadow: inset 0 0 0 1px var(--ok); background: var(--ok-soft); }
+.rb-marks { display: flex; gap: 4px; flex-wrap: wrap; margin-top: auto; }
+.rb-ai { border-left: 3px solid var(--blue); padding: 2px 0 2px 14px; }
+.rb-quotes { margin: 0; padding-left: 18px; font-size: .9rem; }
+.rb-quotes li { margin: 3px 0; }
+.rb-final { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; background: var(--paper); border-radius: 10px; padding: 12px; }
+.rb-bar { position: sticky; bottom: 10px; z-index: 5; display: flex; gap: 10px 16px; flex-wrap: wrap; align-items: center; justify-content: space-between; background: var(--card); border: 1px solid var(--line-2); border-radius: var(--radius); box-shadow: var(--shadow-lg); padding: 8px 80px 8px 14px; }
+.rb-total { display: flex; gap: 14px; align-items: center; flex-wrap: wrap; font-size: 1.05rem; }
+.rb-total-v { font-family: var(--font-head); font-size: 1.45rem; color: var(--blue-deep); }
+@media (max-width: 860px) { .rb-levels { grid-template-columns: minmax(0, 1fr); } }
+@media print { .rb-level { break-inside: avoid; } .rb-section { break-inside: auto; } .rb-bar { position: static; box-shadow: none; } }

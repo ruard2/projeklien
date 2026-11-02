@@ -61,6 +61,9 @@ export default async function OnderwyserGroep({ params }: { params: Promise<{ id
           </div>
         </div>
         <div className="right">
+          <Link className="btn sm" href={`/onderwyser/assessering/${id}`}>
+            Assessering /50
+          </Link>
           <Link className="btn sm" href={`/onderwyser/groep/${id}/druk`}>
             Hele werkboek / druk
           </Link>
